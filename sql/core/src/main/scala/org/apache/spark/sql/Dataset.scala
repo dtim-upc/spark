@@ -50,7 +50,8 @@ import org.apache.spark.sql.execution.arrow.{ArrowBatchStreamWriter, ArrowConver
 import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.python.EvaluatePython
-import org.apache.spark.sql.execution.stat.StatFunctions
+import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
+import org.apache.spark.sql.metafeatures.MetaFeatureAttributes
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.SchemaUtils
@@ -473,6 +474,10 @@ class Dataset[T] private[sql](
   def printSchema(): Unit = println(schema.treeString)
   // scalastyle:on println
 
+//  def computeMetaFeatures(): MetaFeatureAttributes = {
+//
+//    MetaFeatureAttributes(1.2, 2.22, 3.33, 4.44, 5.55, 6.66)
+//  }
   /**
    * Prints the plans (logical and physical) to the console for debugging purposes.
    *
@@ -2537,6 +2542,8 @@ class Dataset[T] private[sql](
    */
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
+
+  def getMetaFeatures(): DataFrame = StatMetaFeature.computeMetaFeature(this)
 
   /**
    * Returns the first `n` rows.

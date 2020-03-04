@@ -62,12 +62,12 @@ object StatMetaFeature extends Logging{
 
 
 
-  private val resA = Map[String, DataFrame]()
-  private val resAAll = Map[String, Seq[(String, Long)]]()
+  private var resA = Map[String, DataFrame]()
 
   def computeMetaFeature(ds: Dataset[_]): DataFrame = {
 
     MetaDataset = new MetaFeatureDataset()
+    resA = Map[String, DataFrame]()
 
     val outputDs = ds.logicalPlan.output
     val defaultMeta = InMap(MeanM -> NumericAtt, StdM -> NumericAtt, MinVM -> NumericAtt,
@@ -119,13 +119,13 @@ object StatMetaFeature extends Logging{
 
     // scalastyle:off println
     println("***")
+    println(s"The attributes are $attributes")
     println(s"$MetaDataset")
     // scalastyle:on println
 
     val result = Array.fill[InternalRow](defaultMeta.size)
       {new GenericInternalRow(attributes.length + 1)}
 
-    // TODO: reset map
     var rowIndex = 0
     for ((k, v) <- defaultMeta) {
       result(rowIndex).update(0, UTF8String.fromString(k))

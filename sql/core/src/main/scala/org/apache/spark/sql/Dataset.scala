@@ -2543,7 +2543,50 @@ class Dataset[T] private[sql](
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
 
-  def getMetaFeatures(): DataFrame = StatMetaFeature.computeMetaFeature(this)
+  lazy val metaFeatures: DataFrame = StatMetaFeature.computeMetaFeature(this)
+
+  def findJoins(df: DataFrame): DataFrame = {
+    val m1 = this.metaFeatures.show
+    val m2 = df.metaFeatures.show
+
+    // CASE: once performing the random tree, we get 1 join with the respective columns
+    // probably result from random tree:
+    val columns = Map("m1" -> "id", "m2" -> "id")
+    val joinExpression = this.col(columns("m1")) === df.col(columns("m2"))
+
+    this.join(df, joinExpression)
+  }
+
+  def findJoinsFromMultipleDF(seq: Dataset[_]*): Seq[DataFrame] = {
+    val listDF = this +: seq
+    for (i <- 0 to listDF.size-2) {
+      for ( i2 <- i + 1 to listDF.size-1 ) {
+        if (i != i2 ) {
+          // scalastyle:off println
+          println(s"Simulating to get metaFeatures for: \n\t$i \n\t $i2")
+          // scalastyle:on println
+        }
+      }
+    }
+    // CASE: once performing the random tree, we get 1 join with the respective columns
+    val columns = Map("0-1" -> "id", "0-2" -> "edad", "1-2" -> "nombre")
+
+    var result = Seq[DataFrame]()
+    for (k <- Seq("0-1", "0-2", "1-2")) {
+      val ids = k.split("-")
+
+      val df = listDF(ids(0).toInt)
+      val df2 = listDF(ids(1).toInt)
+      val joinExpression = df.col(columns(k))=== df2.col(columns(k))
+      result = result :+ df.join(df2, joinExpression)
+    }
+    result
+  }
+
+
+//  def findJoins(df:DataFrame*): DataFrame = {
+//
+//  }
 
   /**
    * Returns the first `n` rows.

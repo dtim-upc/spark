@@ -36,7 +36,7 @@ case class MetaFeature(
 class MetaFeatureDataset {
  private var _numberInstances: Long = _
  private var _numberAttributes: Int = _
- private var _dimensionality: Long = _
+ private var _dimensionality: Double = _
  private var _numberAttNominal: Int = _
  private var _numberAttNumeric: Int = _
  private var _percAttNominal: Long = _
@@ -60,7 +60,7 @@ class MetaFeatureDataset {
 
  def numberInstances: Long = _numberInstances
  def numberAttributes: Int = _numberAttributes
- def dimensionality: Long = _dimensionality
+ def dimensionality: Double = _dimensionality
  def numberAttNominal: Int = _numberAttNominal
  def numberAttNumeric: Int = _numberAttNumeric
  def percAttNominal: Long = _percAttNominal
@@ -84,7 +84,7 @@ class MetaFeatureDataset {
 
  def numberInstances_= (newVal: Long): Unit = _numberInstances = newVal
  def numberAttributes_= (newVal: Int): Unit = _numberAttributes = newVal
- def dimensionality_= (newVal: Long): Unit = _dimensionality = newVal
+ def dimensionality_= (newVal: Double): Unit = _dimensionality = newVal
  def numberAttNominal_= (newVal: Int): Unit = _numberAttNominal = newVal
  def numberAttNumeric_= (newVal: Int): Unit = _numberAttNumeric = newVal
  def percAttNominal_= (newVal: Long): Unit = _percAttNominal = newVal

@@ -64,7 +64,7 @@ object StatMetaFeature extends Logging{
 
   private var resA = Map[String, DataFrame]()
 
-  def computeMetaFeature(ds: Dataset[_]): DataFrame = {
+  def computeMetaFeature(ds: Dataset[_]): (MetaFeatureDataset, DataFrame) = {
 
     MetaDataset = new MetaFeatureDataset()
     resA = Map[String, DataFrame]()
@@ -85,7 +85,9 @@ object StatMetaFeature extends Logging{
     MetaDataset.numberInstances = ds.count
     MetaDataset.numberAttNominal = nominalA.size
     MetaDataset.numberAttNumeric = numericA.size
-    MetaDataset.dimensionality = MetaDataset.numberAttributes/MetaDataset.numberInstances
+
+    MetaDataset.dimensionality = MetaDataset.numberAttributes.toDouble/MetaDataset.numberInstances
+      .toDouble
     MetaDataset.percAttNominal = MetaDataset.numberAttNominal*100/MetaDataset.numberAttributes
     MetaDataset.percAttNumeric = MetaDataset.numberAttNumeric*100/MetaDataset.numberAttributes
 
@@ -117,11 +119,6 @@ object StatMetaFeature extends Logging{
     MetaDataset.missingAttPerc = dataF.reduce(_.union(_)).select((count(when(col("id") > 0, true))
       *100/MetaDataset.numberAttributes).cast("double")).first().get(0).asInstanceOf[Double]
 
-    // scalastyle:off println
-    println("***")
-    println(s"The attributes are $attributes")
-    println(s"$MetaDataset")
-    // scalastyle:on println
 
     val result = Array.fill[InternalRow](defaultMeta.size)
       {new GenericInternalRow(attributes.length + 1)}
@@ -139,7 +136,7 @@ object StatMetaFeature extends Logging{
     }
     val output = AttributeReference("metaFeature", StringType)() +:
       attributes.map(a => AttributeReference(a.toString, StringType)())
-    Dataset.ofRows(ds.sparkSession, LocalRelation(output, result))
+    (MetaDataset, Dataset.ofRows(ds.sparkSession, LocalRelation(output, result)))
   }
 
   private def getColumns(k: String, num: Seq[String], nom: Seq[String], all: Seq[String])

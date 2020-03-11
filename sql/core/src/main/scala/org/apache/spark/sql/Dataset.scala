@@ -23,9 +23,7 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
-
 import org.apache.commons.lang3.StringUtils
-
 import org.apache.spark.TaskContext
 import org.apache.spark.annotation.{DeveloperApi, Experimental, InterfaceStability}
 import org.apache.spark.api.java.JavaRDD
@@ -39,7 +37,7 @@ import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.encoders._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateSafeProjection
-import org.apache.spark.sql.catalyst.json.{JacksonGenerator, JSONOptions}
+import org.apache.spark.sql.catalyst.json.{JSONOptions, JacksonGenerator}
 import org.apache.spark.sql.catalyst.optimizer.CombineUnions
 import org.apache.spark.sql.catalyst.parser.{ParseException, ParserUtils}
 import org.apache.spark.sql.catalyst.plans._
@@ -51,7 +49,7 @@ import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.python.EvaluatePython
 import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
-import org.apache.spark.sql.metafeatures.MetaFeatureAttributes
+import org.apache.spark.sql.metafeatures.{MetaFeatureAttributes, MetaFeatureDataset}
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.SchemaUtils
@@ -2543,51 +2541,66 @@ class Dataset[T] private[sql](
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
 
-  lazy val metaFeatures: DataFrame = StatMetaFeature.computeMetaFeature(this)
+  lazy val metaFeatures: (MetaFeatureDataset, DataFrame) = StatMetaFeature.computeMetaFeature(this)
+  // Later should change to DataFrame
+  private[sql] var joinResult: String = ""
 
-  def findJoins(df: DataFrame): DataFrame = {
-    val m1 = this.metaFeatures.show
-    val m2 = df.metaFeatures.show
+  def computeMetaFeatures: Dataset[T] = {
+    this.metaFeatures
+    // scalastyle:off println
+    println(this.metaFeatures._1)
+    this.metaFeatures._2.show
+    // scalastyle:on println
 
-    // CASE: once performing the random tree, we get 1 join with the respective columns
-    // probably result from random tree:
-    val columns = Map("m1" -> "id", "m2" -> "id")
-    val joinExpression = this.col(columns("m1")) === df.col(columns("m2"))
-
-    this.join(df, joinExpression)
+    this
   }
 
-  def findJoinsFromMultipleDF(seq: Dataset[_]*): Seq[DataFrame] = {
-    val listDF = this +: seq
-    for (i <- 0 to listDF.size-2) {
-      for ( i2 <- i + 1 to listDF.size-1 ) {
-        if (i != i2 ) {
+//  def findJoins(dfs: DataFrame*): Dataset[T] = {
+//    findJoins(dfs)
+//  }
+
+  def findJoins(listDF: Seq[DataFrame]): Dataset[T] = {
+    this.joinResult = joinResult + s"\n\t\t DATAFRAMES \t\t\t\t " +
+      s"CANDIDATES ATTRIBUTES \t\t\t JOIN-SCORE \n"
+
+    // auxiliar number of possible joins
+//    val numAttributes = if (this.logicalPlan.output.size > 4) 3 else 1
+    val numAttributes = this.logicalPlan.output.size-1
+    // scalastyle:off println
+    println("computing metadata for main dataset")
+    // scalastyle:on println
+    val ds1 = this.metaFeatures
+    for (i <- 0 to listDF.size-1) {
+      // scalastyle:off println
+      println(s"computing metadata for dataset $i in the sequence")
+      // scalastyle:on println
+      val ds2 = listDF(i).metaFeatures
+
+      val joinScore = 0.0
+      val joinAttScore = 0.0
+
+      for (j <- 0 to numAttributes) {
+        if (j < listDF(i).logicalPlan.output.size) {
+          val a1 = this.logicalPlan.output(j).name
+          val a2 = listDF(i).logicalPlan.output(j).name
           // scalastyle:off println
-          println(s"Simulating to get metaFeatures for: \n\t$i \n\t $i2")
+          this.joinResult = joinResult + s"\t Main DF and DataFrame[$i] \t main.$a1 " +
+            s"and DataFrame[$i].$a2 \t\t $joinScore \n"
           // scalastyle:on println
         }
       }
     }
-    // CASE: once performing the random tree, we get 1 join with the respective columns
-    val columns = Map("0-1" -> "id", "0-2" -> "edad", "1-2" -> "nombre")
-
-    var result = Seq[DataFrame]()
-    for (k <- Seq("0-1", "0-2", "1-2")) {
-      val ids = k.split("-")
-
-      val df = listDF(ids(0).toInt)
-      val df2 = listDF(ids(1).toInt)
-      val joinExpression = df.col(columns(k))=== df2.col(columns(k))
-      result = result :+ df.join(df2, joinExpression)
-    }
-    result
+    // scalastyle:off println
+    println(this.joinResult)
+    // scalastyle:on println
+    this
   }
 
-
-//  def findJoins(df:DataFrame*): DataFrame = {
-//
-//  }
-
+  def showJoinPredicates(): Unit = {
+    // scalastyle:off println
+    println(this.joinResult)
+    // scalastyle:on println
+  }
   /**
    * Returns the first `n` rows.
    *

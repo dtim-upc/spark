@@ -26,7 +26,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.metafeatures.MetaFeatureDataset
+import org.apache.spark.sql.metafeatures.{MetaFeatureDataset, MetaFeatureDatasets}
 import org.apache.spark.sql.types.{LongType, NumericType, StringType}
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -44,6 +44,7 @@ object StatMetaFeature extends Logging{
   private val MeanM = "mean"
   private val StdM = "std"
   private val MinVM = "min_val"
+  private val MaxVM = "max_val"
   private val RangeM = "range_val"
   private val CoVarM = "co_of_var"
   private val SizeAvgM = "val_size_avg"
@@ -61,33 +62,36 @@ object StatMetaFeature extends Logging{
   private val Valmissing = "missing_values"
 
 
-
   private var resA = Map[String, DataFrame]()
 
-  def computeMetaFeature(ds: Dataset[_]): (MetaFeatureDataset, DataFrame) = {
+  val ColAtt = "att_name"
+
+  val AllMeta = InMap(CntDistinct -> AllType, PctMissing -> AllType, PctDistinct -> AllType)
+  val NumericMeta = AllMeta ++ InMap(MeanM -> NumericAtt, StdM -> NumericAtt, MinVM -> NumericAtt,
+    MaxVM -> NumericAtt, RangeM -> NumericAtt, CoVarM -> NumericAtt)
+  val NominalMeta = AllMeta ++ InMap(SizeAvgM -> NominalType, PctMedian -> NominalType,
+    SizeMinM -> NominalType, SizeMaxM -> NominalType, SizeStdMax -> NominalType,
+    PctMinM -> NominalType, PctMaxM -> NominalType, PctStdM -> NominalType)
+
+  def computeMetaFeature(ds: Dataset[_]): (DataFrame, DataFrame, DataFrame) = {
 
     MetaDataset = new MetaFeatureDataset()
     resA = Map[String, DataFrame]()
 
     val outputDs = ds.logicalPlan.output
-    val defaultMeta = InMap(MeanM -> NumericAtt, StdM -> NumericAtt, MinVM -> NumericAtt,
-      RangeM -> NumericAtt, CoVarM -> NumericAtt, SizeAvgM -> NominalType, PctMedian -> NominalType,
-      SizeMinM -> NominalType, SizeMaxM -> NominalType, SizeStdMax -> NominalType,
-      PctMinM -> NominalType, PctMaxM -> NominalType, PctStdM -> NominalType,
-      CntDistinct -> AllType, PctMissing -> AllType, PctDistinct -> AllType)
+    val defaultMeta = NumericMeta ++ NominalMeta
 
     // TODO: Check what types are UDTs, arrays, structs, and maps to handle them
     val nominalA = outputDs.filter(a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
     val numericA = outputDs.filter(a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
     val attributes = nominalA ++ numericA
 
-    MetaDataset.numberAttributes = outputDs.size
-    MetaDataset.numberInstances = ds.count
-    MetaDataset.numberAttNominal = nominalA.size
-    MetaDataset.numberAttNumeric = numericA.size
+    MetaDataset.numberAttributes = outputDs.size.toDouble
+    MetaDataset.numberInstances = ds.count.toDouble
+    MetaDataset.numberAttNominal = nominalA.size.toDouble
+    MetaDataset.numberAttNumeric = numericA.size.toDouble
 
-    MetaDataset.dimensionality = MetaDataset.numberAttributes.toDouble/MetaDataset.numberInstances
-      .toDouble
+    MetaDataset.dimensionality = MetaDataset.numberAttributes/MetaDataset.numberInstances
     MetaDataset.percAttNominal = MetaDataset.numberAttNominal*100/MetaDataset.numberAttributes
     MetaDataset.percAttNumeric = MetaDataset.numberAttNumeric*100/MetaDataset.numberAttributes
 
@@ -119,24 +123,42 @@ object StatMetaFeature extends Logging{
     MetaDataset.missingAttPerc = dataF.reduce(_.union(_)).select((count(when(col("id") > 0, true))
       *100/MetaDataset.numberAttributes).cast("double")).first().get(0).asInstanceOf[Double]
 
+    // compute content meta-features
+    for ((k, v) <- defaultMeta) {
+      val selectCols = getColumns(v, numericA, nominalA, attributes)
+      resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
+    }
 
-    val result = Array.fill[InternalRow](defaultMeta.size)
-      {new GenericInternalRow(attributes.length + 1)}
+    val dsMeta = createDF(ds, MetaDataset.toSeq)
+    val numericAtt = Dataset.ofRows(ds.sparkSession, createMFRel(NumericMeta, numericA))
+    val nominalAtt = Dataset.ofRows(ds.sparkSession, createMFRel(NominalMeta, nominalA))
+
+    (dsMeta, numericAtt, nominalAtt)
+  }
+
+  // TODO: handle empty attSeq
+  private def createMFRel(meta: InMap[String, String], attSeq: Seq[String]): LocalRelation = {
+    val rowsSize = attSeq.length
+    val result = Array.fill[InternalRow](rowsSize)
+      {new GenericInternalRow(meta.size + 1)}
 
     var rowIndex = 0
-    for ((k, v) <- defaultMeta) {
-      result(rowIndex).update(0, UTF8String.fromString(k))
-      val selectCols = getColumns(v, numericA, nominalA, attributes)
-      val statDf = resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
-      for ((x, i) <- attributes.view.zipWithIndex) {
-        val statVal = if (selectCols.contains(x)) statDf.select(x).first().get(0) + "" else null
-        result(rowIndex).update(i + 1, UTF8String.fromString(statVal))
-      }
-      rowIndex += 1
+    val columnsOutput = meta.keySet
+    for (att <- attSeq) {
+          // compute content-level metadata
+          result(rowIndex).update(0, UTF8String.fromString(att))
+          var colIndex = 1
+          for ((k, v) <- meta) {
+            val stat = resA.get(k).get
+            val statVal = stat.select(att).first().get(0) + ""
+            result(rowIndex).update(colIndex, UTF8String.fromString(statVal))
+            colIndex += 1
+          }
+          rowIndex += 1
     }
-    val output = AttributeReference("metaFeature", StringType)() +:
-      attributes.map(a => AttributeReference(a.toString, StringType)())
-    (MetaDataset, Dataset.ofRows(ds.sparkSession, LocalRelation(output, result)))
+    val output = AttributeReference(ColAtt, StringType)() +:
+          columnsOutput.toSeq.map(a => AttributeReference(a, StringType)())
+    LocalRelation(output, result)
   }
 
   private def getColumns(k: String, num: Seq[String], nom: Seq[String], all: Seq[String])
@@ -151,11 +173,14 @@ object StatMetaFeature extends Logging{
     case MeanM => aggregateNumericMeta(mean, ds, cols)
     case StdM => aggregateNumericMeta(stddev, ds, cols)
     case MinVM => aggregateNumericMeta(min, ds, cols)
+    case MaxVM => aggregateNumericMeta(max, ds, cols)
     case RangeM =>
-      val maxDf = ds.select(cols.map( x => max(x).as(s"${x}_" + RangeM)): _*)
-      val minDf = resA.getOrElseUpdate(MinVM, getMeta(MinVM, ds, cols))
-      maxDf.crossJoin(minDf).select(cols.map(x =>
-        concat(col(x), lit(", "), col(s"${x}_" + RangeM)).as(x)): _*)
+      var maxDf = ds.select(cols.map( x => max(x).as(s"${x}_" + MaxVM)): _*)
+      var minDf = resA.getOrElseUpdate(MinVM, getMeta(MinVM, ds, cols))
+      maxDf = maxDf.withColumn("id", monotonically_increasing_id)
+      minDf = minDf.withColumn("id", monotonically_increasing_id)
+      val cross = minDf.join(maxDf, "id")
+      cross.select( cols.map(x => (col(s"${x}_" + MaxVM)-col(x)).as(x)): _* )
     case CoVarM =>
       val meanDf = resA.getOrElseUpdate(MeanM, getMeta(MeanM, ds, cols))
       val std = resA.getOrElseUpdate(StdM, getMeta(MeanM, ds, cols))
@@ -172,10 +197,10 @@ object StatMetaFeature extends Logging{
       val dfTmp = getMeta(CntDistinct, ds, cols).select(cols.map(col(_).cast("double")): _*)
       val data = cols.map(x => x -> dfTmp.stat.approxQuantile(x, Array(0.5), 0.25)(0).longValue())
       createDF(ds, data)
-    case CntDistinct => createDF(ds, cols.map(x => x -> ds.select(col(x).cast("double"))
+    case CntDistinct => createDF(ds, cols.map(x => x -> ds.select(col(x))
       .distinct.count))
     case PctDistinct => resA.getOrElseUpdate(CntDistinct, getMeta(CntDistinct, ds, cols)).
-      select(cols.map(x => (col(x)*100/MetaDataset.numberInstances).as(x)): _*)
+      select(cols.map(x => (col(x)/MetaDataset.numberInstances).as(x)): _*)
     case PctMissing => ds.select(cols.map(c => (sum(col(c).isNull
       .cast("int"))*100/MetaDataset.numberInstances).as(c)): _*)
     case Valmissing => ds.select(cols.map(c => sum(col(c).isNull.cast("int")).as(c)): _*)
@@ -196,13 +221,18 @@ object StatMetaFeature extends Logging{
 
   def aggregateDatasetMeta(f: String => Column, ds: Dataset[_], meta: String, cols: Seq[String])
     : Double = {
-    val df = meta match {
-      case CntDistinct => resA.getOrElseUpdate(meta, getMeta(meta, ds, ds.columns)).
-           select(cols.map(col(_).cast("double")): _*)
-      case _ => resA.getOrElseUpdate(meta, getMeta(meta, ds, cols))
+    if (cols.isEmpty) {
+      0
+    } else {
+      val df = meta match {
+        case CntDistinct => resA.getOrElseUpdate(meta, getMeta(meta, ds, ds.columns)).
+          select(cols.map(col(_).cast("double")): _*)
+        case _ => resA.getOrElseUpdate(meta, getMeta(meta, ds, cols))
+      }
+      cols.map(x => df.select(col(x).as(meta))).reduce(_.union(_))
+        .select(f(meta).cast("double")).first().get(0).asInstanceOf[Double]
     }
-    cols.map(x => df.select(col(x).as(meta))).reduce(_.union(_))
-      .select(f(meta).cast("double")).first().get(0).asInstanceOf[Double]
+
   }
 
   def aggregateNominalMeta(f: Column => Column, ds: Dataset[_], cols: Seq[String],
@@ -215,5 +245,46 @@ object StatMetaFeature extends Logging{
         select(f(col("count")).as(x))).reduce((a, b) => a.crossJoin(b))
     }
   }
+
+
+
+
+  private def zScore(x: Double, avgVal: Double, stdVal: Double): Double = {
+    (x - avgVal) / stdVal
+  }
+
+  /**
+   *
+   * @param df need to have colum ds_name and att_name
+   * @param metaType
+   * @return
+   */
+  def standarizeDF(df: Dataset[_], metaType: String): DataFrame = {
+    val zScoreUDF = udf(zScore(_: Double, _: Double, _: Double): Double)
+    val cols = getColumnsMeta(metaType)
+
+    val meanAndStd = cols.map(x => df.select(mean(col(x)).as(s"${x}_avg"),
+      stddev(col(x)).as(s"${x}_std"))
+      .withColumn("id", monotonically_increasing_id))
+      .reduce(_.join(_, "id"))
+
+    val crossDF = df.crossJoin(meanAndStd)
+
+    cols.map(x => crossDF.select(col(MetaFeatureDatasets.ColDs), col(ColAtt),
+      zScoreUDF( col(x), col(s"${x}_avg"), col(s"${x}_std")).as(x)))
+      .reduce(_.join(_, Seq(MetaFeatureDatasets.ColDs, ColAtt)))
+
+  }
+
+
+  private def getColumnsMeta(metaType: String): Seq[String] = metaType match {
+    case "numeric" => NumericMeta.keySet.toSeq
+    case "nominal" => NominalMeta.keySet.toSeq
+    case "datasets" => MetaFeatureDatasets.cols()
+    case _ => MetaFeatureDatasets.cols()
+  }
+
+
+
 
 }

@@ -33,14 +33,74 @@ case class MetaFeature(
 //  override def toString: String = s"MetaFeatureAttributes($mean,$std,$min_val)"
 }
 
+object MetaFeatureDatasets{
+ val ColDs = "ds_name"
+
+ val NumInst = "num_instances"
+ val NumAtt = "num_attributes"
+ val Dim = "dimensionality"
+ val NomAttCnt = "nom_attr_cnt"
+ val NumAttCnt = "num_attr_cnt"
+ val PctNomAtt = "nom_attr_pct"
+ val PctNumAtt = "num_attr_pct"
+ val NomAvg = "nom_values_avg"
+ val NomStd = "nom_values_std"
+ val NomMin = "nom_values_min"
+ val NomMax = "nom_values_max"
+ val NumAvg = "num_avg"
+ val NumStd = "num_std"
+ val NumMin = "num_min"
+ val NumMax = "num_max"
+ val MissingCnt = "missing_attr_cnt"
+ val MissingAttPct = "missing_attr_pct"
+ val MissingMin = "missing_values_min"
+ val MissingMax = "missing_values_max"
+ val MissingMinPct = "missing_values_pct_min"
+ val MissingMaxPct = "missing_values_pct_max"
+ val MissingMean = "missing_values_avg"
+ val MissingMeanPct = "missing_values_pct_avg"
+
+ def cols(): Seq[String] = {
+  Seq( NumInst, NumAtt, Dim, NomAttCnt, NumAttCnt, PctNomAtt, PctNumAtt, NomAvg, NomStd, NomMin,
+   NomMax, NumAvg, NumStd, NumMin, NumMax, MissingCnt, MissingAttPct, MissingMin, MissingMax,
+   MissingMinPct, MissingMaxPct, MissingMean, MissingMeanPct)
+ }
+}
+
 class MetaFeatureDataset {
- private var _numberInstances: Long = _
- private var _numberAttributes: Int = _
+ // TODO: Check if can be moved to a companion object
+ val NumInst = "num_instances"
+ val NumAtt = "num_attributes"
+ val Dim = "dimensionality"
+ val NomAttCnt = "nom_attr_cnt"
+ val NumAttCnt = "num_attr_cnt"
+ val PctNomAtt = "nom_attr_pct"
+ val PctNumAtt = "num_attr_pct"
+ val NomAvg = "nom_values_avg"
+ val NomStd = "nom_values_std"
+ val NomMin = "nom_values_min"
+ val NomMax = "nom_values_max"
+ val NumAvg = "num_avg"
+ val NumStd = "num_std"
+ val NumMin = "num_min"
+ val NumMax = "num_max"
+ val MissingCnt = "missing_attr_cnt"
+ val MissingAttPct = "missing_attr_pct"
+ val MissingMin = "missing_values_min"
+ val MissingMax = "missing_values_max"
+ val MissingMinPct = "missing_values_pct_min"
+ val MissingMaxPct = "missing_values_pct_max"
+ val MissingMean = "missing_values_avg"
+ val MissingMeanPct = "missing_values_pct_avg"
+
+
+ private var _numberInstances: Double = _
+ private var _numberAttributes: Double = _
  private var _dimensionality: Double = _
- private var _numberAttNominal: Int = _
- private var _numberAttNumeric: Int = _
- private var _percAttNominal: Long = _
- private var _percAttNumeric: Long = _
+ private var _numberAttNominal: Double = _
+ private var _numberAttNumeric: Double = _
+ private var _percAttNominal: Double = _
+ private var _percAttNumeric: Double = _
  private var _avgNominal: Double = _
  private var _stdNominal: Double = _
  private var _minNominal: Double = _
@@ -58,13 +118,13 @@ class MetaFeatureDataset {
  private var _meanMissing: Double = _
  private var _meanMissingPerc: Double = _
 
- def numberInstances: Long = _numberInstances
- def numberAttributes: Int = _numberAttributes
+ def numberInstances: Double = _numberInstances
+ def numberAttributes: Double = _numberAttributes
  def dimensionality: Double = _dimensionality
- def numberAttNominal: Int = _numberAttNominal
- def numberAttNumeric: Int = _numberAttNumeric
- def percAttNominal: Long = _percAttNominal
- def percAttNumeric: Long = _percAttNumeric
+ def numberAttNominal: Double = _numberAttNominal
+ def numberAttNumeric: Double = _numberAttNumeric
+ def percAttNominal: Double = _percAttNominal
+ def percAttNumeric: Double = _percAttNumeric
  def avgNominal: Double = _avgNominal
  def stdNominal: Double = _stdNominal
  def minNominal: Double = _minNominal
@@ -82,13 +142,13 @@ class MetaFeatureDataset {
  def meanMissing: Double = _meanMissing
  def meanMissingPerc: Double = _meanMissingPerc
 
- def numberInstances_= (newVal: Long): Unit = _numberInstances = newVal
- def numberAttributes_= (newVal: Int): Unit = _numberAttributes = newVal
+ def numberInstances_= (newVal: Double): Unit = _numberInstances = newVal
+ def numberAttributes_= (newVal: Double): Unit = _numberAttributes = newVal
  def dimensionality_= (newVal: Double): Unit = _dimensionality = newVal
- def numberAttNominal_= (newVal: Int): Unit = _numberAttNominal = newVal
- def numberAttNumeric_= (newVal: Int): Unit = _numberAttNumeric = newVal
- def percAttNominal_= (newVal: Long): Unit = _percAttNominal = newVal
- def percAttNumeric_= (newVal: Long): Unit = _percAttNumeric = newVal
+ def numberAttNominal_= (newVal: Double): Unit = _numberAttNominal = newVal
+ def numberAttNumeric_= (newVal: Double): Unit = _numberAttNumeric = newVal
+ def percAttNominal_= (newVal: Double): Unit = _percAttNominal = newVal
+ def percAttNumeric_= (newVal: Double): Unit = _percAttNumeric = newVal
  def avgNominal_= (newVal: Double): Unit = _avgNominal = newVal
  def stdNominal_= (newVal: Double): Unit = _stdNominal = newVal
  def minNominal_= (newVal: Double): Unit = _minNominal = newVal
@@ -108,8 +168,9 @@ class MetaFeatureDataset {
 
 
  override def toString() : String = {
+  "\n*****" +
   "Number of instances: " + numberInstances + "\n" +
-  "Number of attributes: " + numberAttributes
+  "Number of attributes: " + numberAttributes + "\n" +
   "Dimensionality: " + dimensionality + "\n" +
   "Number of nominal attributes: " + numberAttNominal + "\n" +
   "Number of numeric attributes: " + numberAttNumeric + "\n" +
@@ -131,6 +192,34 @@ class MetaFeatureDataset {
   "Max percentage of missing values: " + maxMissingPerc + "\n" +
   "Mean number of missing values: " + meanMissing + "\n" +
   "Mean percentage of missing values: " + meanMissingPerc + "\n"
+ }
+
+ def toSeq(): Seq[(String, Long)] = {
+  Seq(
+  NumInst -> numberInstances.toLong,
+  NumAtt -> numberAttributes.toLong,
+  Dim -> dimensionality.toLong,
+  NomAttCnt -> numberAttNominal.toLong,
+  NumAttCnt -> numberAttNumeric.toLong,
+  PctNomAtt -> percAttNominal.toLong,
+  PctNumAtt -> percAttNumeric.toLong,
+  NomAvg -> avgNominal.toLong,
+  NomStd -> stdNominal.toLong,
+  NomMin -> minNominal.toLong,
+  NomMax -> maxNominal.toLong,
+  NumAvg -> avgNumeric.toLong,
+  NumStd -> stdNumeric.toLong,
+  NumMin -> minNumeric.toLong,
+  NumMax -> maxNumeric.toLong,
+  MissingCnt -> missingAttCnt.toLong,
+  MissingAttPct -> missingAttPerc.toLong,
+  MissingMin -> minMissing.toLong,
+  MissingMax -> maxMissing.toLong,
+  MissingMinPct -> minMissingPerc.toLong,
+  MissingMaxPct -> maxMissingPerc.toLong,
+  MissingMean -> meanMissing.toLong,
+  MissingMeanPct -> meanMissingPerc.toLong
+  )
  }
 }
 

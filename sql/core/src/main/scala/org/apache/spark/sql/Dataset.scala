@@ -23,8 +23,10 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
+
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.TaskContext
+
 import org.apache.spark.annotation.{DeveloperApi, Experimental, InterfaceStability}
 import org.apache.spark.api.java.JavaRDD
 import org.apache.spark.api.java.function._
@@ -37,7 +39,7 @@ import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.encoders._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateSafeProjection
-import org.apache.spark.sql.catalyst.json.{JSONOptions, JacksonGenerator}
+import org.apache.spark.sql.catalyst.json.{JacksonGenerator, JSONOptions}
 import org.apache.spark.sql.catalyst.optimizer.CombineUnions
 import org.apache.spark.sql.catalyst.parser.{ParseException, ParserUtils}
 import org.apache.spark.sql.catalyst.plans._
@@ -49,6 +51,7 @@ import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.python.EvaluatePython
 import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
+import org.apache.spark.sql.functions.{abs, col, lit, udf}
 import org.apache.spark.sql.metafeatures.{MetaFeatureAttributes, MetaFeatureDataset}
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types._
@@ -2541,60 +2544,148 @@ class Dataset[T] private[sql](
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
 
-  lazy val metaFeatures: (MetaFeatureDataset, DataFrame) = StatMetaFeature.computeMetaFeature(this)
+  lazy val metaFeatures: (DataFrame, DataFrame, DataFrame)
+    = StatMetaFeature.computeMetaFeature(this)
   // Later should change to DataFrame
   private[sql] var joinResult: String = ""
 
   def computeMetaFeatures: Dataset[T] = {
     this.metaFeatures
-    // scalastyle:off println
-    println(this.metaFeatures._1)
+    this.metaFeatures._1.show
     this.metaFeatures._2.show
-    // scalastyle:on println
-
+    this.metaFeatures._3.show
     this
   }
 
-//  def findJoins(dfs: DataFrame*): Dataset[T] = {
-//    findJoins(dfs)
-//  }
+  def findJoins(dfs: DataFrame*): Seq[DataFrame] = {
+    findJoins(dfs)
+  }
 
-  def findJoins(listDF: Seq[DataFrame]): Dataset[T] = {
+  def findJoins(listDF: => Seq[DataFrame]): Seq[DataFrame] = {
+    var listJoinsDF = Seq[DataFrame]()
+
+    val mapping = Map("id"->"identifier", "edad"->"age", "nombre"->"name")
+
     this.joinResult = joinResult + s"\n\t\t DATAFRAMES \t\t\t\t " +
       s"CANDIDATES ATTRIBUTES \t\t\t JOIN-SCORE \n"
 
     // auxiliar number of possible joins
-//    val numAttributes = if (this.logicalPlan.output.size > 4) 3 else 1
+    //    val numAttributes = if (this.logicalPlan.output.size > 4) 3 else 1
     val numAttributes = this.logicalPlan.output.size-1
     // scalastyle:off println
     println("computing metadata for main dataset")
     // scalastyle:on println
-    val ds1 = this.metaFeatures
+    val ds1Meta = this.metaFeatures
     for (i <- 0 to listDF.size-1) {
       // scalastyle:off println
       println(s"computing metadata for dataset $i in the sequence")
       // scalastyle:on println
-      val ds2 = listDF(i).metaFeatures
+      val ds2Meta = listDF(i).metaFeatures
 
       val joinScore = 0.0
       val joinAttScore = 0.0
 
       for (j <- 0 to numAttributes) {
-        if (j < listDF(i).logicalPlan.output.size) {
-          val a1 = this.logicalPlan.output(j).name
-          val a2 = listDF(i).logicalPlan.output(j).name
-          // scalastyle:off println
+        val a1 = this.logicalPlan.output(j).name
+        var a2 = ""
+        val colnames = listDF(i).logicalPlan.output.map(_.name)
+        a1 match {
+          case "id" =>
+            a2 = if (colnames.contains("id")) "id" else "identifier"
+          case "identifier" =>
+            a2 = "id"
+          case "edad" =>
+            a2 = if (colnames.contains("edad")) "edad" else "age"
+          case "age" =>
+            a2 = "edad"
+          case "nombre" =>
+            a2 = if (colnames.contains("nombre")) "nombre" else "name"
+          case "name" =>
+            a2 = "nombre"
+          case _ =>
+            a2 = ""
+        }
+
+        // scalastyle:off println
+        if (colnames.contains(a2)) {
           this.joinResult = joinResult + s"\t Main DF and DataFrame[$i] \t main.$a1 " +
             s"and DataFrame[$i].$a2 \t\t $joinScore \n"
-          // scalastyle:on println
+
+          val joinExpression = this.col(a1) === listDF(i).col(a2)
+          listJoinsDF = listJoinsDF :+ this.join(listDF(i), joinExpression)
         }
+        // scalastyle:on println
+
+
+//        if (j < listDF(i).logicalPlan.output.size) {
+//          val a1 = this.logicalPlan.output(j).name
+//          val a2 = listDF(i).logicalPlan.output(j).name
+//
+//          // scalastyle:off println
+//          this.joinResult = joinResult + s"\t Main DF and DataFrame[$i] \t main.$a1 " +
+//            s"and DataFrame[$i].$a2 \t\t $joinScore \n"
+//
+//          val joinExpression = this.col(a1) === listDF(i).col(a2)
+//          listJoinsDF = listJoinsDF :+ this.join(listDF(i), joinExpression)
+//          // scalastyle:on println
+//        }
       }
     }
     // scalastyle:off println
     println(this.joinResult)
     // scalastyle:on println
-    this
+    listJoinsDF
   }
+
+  def findJ(listDF: => Seq[DataFrame]): (DataFrame, DataFrame,DataFrame) = {
+
+    var (dsMF, numMF, nomMF) = this.metaFeatures
+
+    nomMF = nomMF.withColumn("ds_name", lit(0))
+    numMF = numMF.withColumn("ds_name", lit(0))
+
+    // compute metaFeatures for all datasets
+    for (i <- 0 to listDF.size-1) {
+      var (dsTmp, numTmp, nomTmp) = listDF(i).metaFeatures
+      nomMF = nomMF.union(nomTmp.withColumn("ds_name", lit(i + 1)))
+      numMF = numMF.union(numTmp.withColumn("ds_name", lit(i + 1)))
+//      dsMF = dsMF.union(dsTmp)
+    }
+
+    val nomZscore = StatMetaFeature.standarizeDF(nomMF, "nominal")
+    val numZscore = StatMetaFeature.standarizeDF(numMF, "numeric")
+//    StatMetaFeature.standarizeDF(dsMF, "datasets")
+
+    val attSeq = this.logicalPlan.output.map(_.name)
+    var attCompare = nomMF.filter(col("ds_name") =!= 0)
+
+    var cols = attCompare.schema.names
+    cols = cols.filter(_ != "ds_name").filter(_ != "att_name")
+    attCompare = attCompare.select(cols.map(x => col(x).as(s"${x}_2")): _*)
+    var matching = nomMF
+    var flag = true
+    for (att <- attSeq) {
+      var tmp = nomMF.filter(col("ds_name") === 0  && col("att_name") === att)
+      var matchingTmp = tmp.crossJoin(attCompare)
+      for (c <- cols) {
+        matchingTmp = matchingTmp.withColumn(c, abs(col(c) - col(s"${c}_2")))
+      }
+      if (flag) {
+        matching = matchingTmp
+        flag = false
+      } else {
+        matching = matching.union( matchingTmp.drop(cols.map(x => s"${x}_2"): _*))
+      }
+
+
+    }
+
+
+
+    (nomZscore, numZscore,matching)
+  }
+
+
 
   def showJoinPredicates(): Unit = {
     // scalastyle:off println

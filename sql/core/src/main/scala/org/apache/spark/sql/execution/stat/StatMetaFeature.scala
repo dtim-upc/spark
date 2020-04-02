@@ -249,9 +249,6 @@ object StatMetaFeature extends Logging{
 
 
 
-  private def zScore(x: Double, avgVal: Double, stdVal: Double): Double = {
-    (x - avgVal) / stdVal
-  }
 
   /**
    *
@@ -276,6 +273,11 @@ object StatMetaFeature extends Logging{
 
   }
 
+
+
+  private def zScore(x: Double, avgVal: Double, stdVal: Double): Double = {
+    (x - avgVal) / stdVal
+  }
 
   private def getColumnsMeta(metaType: String): Seq[String] = metaType match {
     case "numeric" => NumericMeta.keySet.toSeq

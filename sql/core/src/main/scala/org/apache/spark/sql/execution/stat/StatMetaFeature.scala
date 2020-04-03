@@ -19,9 +19,10 @@ package org.apache.spark.sql.execution.stat
 
 import scala.collection.immutable.{Map => InMap}
 import scala.collection.mutable.Map
+import scala.collection.parallel.ParSeq
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{Column, DataFrame, Dataset}
+import org.apache.spark.sql.{AnalysisException, Column, DataFrame, Dataset, SaveMode}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
 import org.apache.spark.sql.catalyst.plans.logical.LocalRelation
@@ -123,31 +124,73 @@ object StatMetaFeature extends Logging{
     MetaDataset.missingAttPerc = dataF.reduce(_.union(_)).select((count(when(col("id") > 0, true))
       *100/MetaDataset.numberAttributes).cast("double")).first().get(0).asInstanceOf[Double]
 
-    // compute content meta-features
-    for ((k, v) <- defaultMeta) {
-      val selectCols = getColumns(v, numericA, nominalA, attributes)
-      resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
-    }
+
+    // TODO: Handle when more files and save metadata
+    val filename = ds.inputFiles(0).split("/").last
+    val path = ds.inputFiles(0)
+
+    val nomPath = pathMF(path, filename, "nominal")
+    val numPath = pathMF(path, filename, "numeric")
 
     val dsMeta = createDF(ds, MetaDataset.toSeq)
-    val numericAtt = Dataset.ofRows(ds.sparkSession, createMFRel(NumericMeta, numericA))
-    val nominalAtt = Dataset.ofRows(ds.sparkSession, createMFRel(NominalMeta, nominalA))
+    try {
+      val nominalAtt = ds.sparkSession.read.load(nomPath)
+      val numericAtt = ds.sparkSession.read.load(numPath)
+      // scalastyle:off println
+       println("READ META")
+        // scalastyle:on println
+      (dsMeta, numericAtt, nominalAtt)
+    } catch {
+      case e:
+        // scalastyle:off println
+        AnalysisException => println("Couldn't find that file.")
+        // scalastyle:on println
+        // compute content meta-features
+        for ((k, v) <- defaultMeta) {
+          val selectCols = getColumns(v, numericA, nominalA, attributes)
+          resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
+        }
 
-    (dsMeta, numericAtt, nominalAtt)
+        var numericAtt = Dataset.ofRows(ds.sparkSession,
+          createMFRel(NumericMeta, numericA, filename))
+        var nominalAtt = Dataset.ofRows(ds.sparkSession,
+          createMFRel(NominalMeta, nominalA, filename))
+
+        saveMF(nomPath, nominalAtt)
+        saveMF(numPath, numericAtt)
+        (dsMeta, ds.sparkSession.read.load(numPath), ds.sparkSession.read.load(nomPath))
+      case _:
+        // TODO: handle it
+        // scalastyle:off println
+        Throwable => println("Got some other kind of Throwable exception")
+        // scalastyle:on println
+        (dsMeta, dsMeta, dsMeta)
+    }
+
+  }
+
+  def pathMF(path: String, fn1: String, meta: String): String = {
+    val fn = fn1.replace(".", "")
+    path.replace(fn1, s".${fn}/.${meta}")
+  }
+
+  def saveMF(path: String, ds: Dataset[_]): Unit = {
+    ds.write.mode(SaveMode.Overwrite).format("parquet").save(path)
   }
 
   // TODO: handle empty attSeq
-  private def createMFRel(meta: InMap[String, String], attSeq: Seq[String]): LocalRelation = {
+  def createMFRel(meta: InMap[String, String], attSeq: Seq[String], f: String): LocalRelation = {
     val rowsSize = attSeq.length
     val result = Array.fill[InternalRow](rowsSize)
-      {new GenericInternalRow(meta.size + 1)}
+      {new GenericInternalRow(meta.size + 2)} // for attName and ds_name
 
     var rowIndex = 0
     val columnsOutput = meta.keySet
     for (att <- attSeq) {
           // compute content-level metadata
-          result(rowIndex).update(0, UTF8String.fromString(att))
-          var colIndex = 1
+          result(rowIndex).update(0, UTF8String.fromString(f))
+          result(rowIndex).update(1, UTF8String.fromString(att))
+          var colIndex = 2
           for ((k, v) <- meta) {
             val stat = resA.get(k).get
             val statVal = stat.select(att).first().get(0) + ""
@@ -156,7 +199,8 @@ object StatMetaFeature extends Logging{
           }
           rowIndex += 1
     }
-    val output = AttributeReference(ColAtt, StringType)() +:
+    val output = AttributeReference(MetaFeatureDatasets.ColDs, StringType)() +:
+          AttributeReference(ColAtt, StringType)() +:
           columnsOutput.toSeq.map(a => AttributeReference(a, StringType)())
     LocalRelation(output, result)
   }
@@ -256,23 +300,42 @@ object StatMetaFeature extends Logging{
    * @param metaType
    * @return
    */
-  def standarizeDF(df: Dataset[_], metaType: String): DataFrame = {
+  def standarizeDF(df: Dataset[_], metaType: String): Dataset[_] = {
     val zScoreUDF = udf(zScore(_: Double, _: Double, _: Double): Double)
     val cols = getColumnsMeta(metaType)
 
     val meanAndStd = cols.map(x => df.select(mean(col(x)).as(s"${x}_avg"),
       stddev(col(x)).as(s"${x}_std"))
       .withColumn("id", monotonically_increasing_id))
-      .reduce(_.join(_, "id"))
+      .reduce(_.join(_, "id")).take(1).head
+    // scalastyle:off println
+//    println(s"${metaType}***")
+//    cols.map(println)
+//    println(meanAndStd.toString)
+    // scalastyle:on println
 
-    val crossDF = df.crossJoin(meanAndStd)
+    var zScoreDF = df
+    for (c <- cols) {
+      zScoreDF = zScoreDF.withColumn(c,
+        (col(c) - lit(meanAndStd.getAs(s"${c}_avg")))
+          /  lit(meanAndStd.getAs(s"${c}_std")))
+    }
 
-    cols.map(x => crossDF.select(col(MetaFeatureDatasets.ColDs), col(ColAtt),
-      zScoreUDF( col(x), col(s"${x}_avg"), col(s"${x}_std")).as(x)))
-      .reduce(_.join(_, Seq(MetaFeatureDatasets.ColDs, ColAtt)))
+
+//    val a = cols.map(x =>
+//      df.select(col(MetaFeatureDatasets.ColDs), col(ColAtt),
+//      zScoreUDF( col(x), lit(meanAndStd.getAs(s"${x}_avg")),
+//        lit(meanAndStd.getAs(s"${x}_std"))).as(x)))
+//       .reduce(_.join(_, Seq(MetaFeatureDatasets.ColDs, ColAtt)))
+
+    // scalastyle:off println
+//    println(s"${zScoreDF.count()} :) ***")
+//    zScoreDF.show(10)
+    // scalastyle:on println
+//    a
+    zScoreDF
 
   }
-
 
 
   private def zScore(x: Double, avgVal: Double, stdVal: Double): Double = {

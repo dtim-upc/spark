@@ -17,44 +17,52 @@
 
 package org.apache.spark.sql.findJoinsP
 
+import scala.collection.mutable.Map
+import scala.collection.parallel.ParSeq
+import scala.math.max
+
 import org.apache.spark.sql.{DataFrame, Dataset}
 import org.apache.spark.sql.execution.stat.StatMetaFeature
 import org.apache.spark.sql.functions.{abs, col, input_file_name, lit, udf}
 
 object findJoinsObj {
 
-  lazy val fileNameDF = udf(get_only_file_name(_: String): String)
 
 
-  def findJ(dfOriginal: Dataset[_], dfSeq: Seq[Dataset[_]]) : (DataFrame, DataFrame, DataFrame) = {
 
-    var (dsMF, numMF, nomMF) = dfOriginal.metaFeatures
+  def findJ(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_], Dataset[_], DataFrame) = {
+
+    var (dsMF, numMF, nomMF) = dfSo.metaFeatures
 
     // TODO: Make stronger file name to avoid duplications
-    nomMF = nomMF.withColumn("ds_name", fileNameDF(input_file_name))
-    numMF = numMF.withColumn("ds_name", fileNameDF(input_file_name))
+    nomMF = nomMF
+    numMF = numMF
     val fileName = nomMF.select("ds_name").first().get(0).asInstanceOf[String]
 
     // compute metaFeatures for all datasets
     for (i <- 0 to dfSeq.size-1) {
       var (dsTmp, numTmp, nomTmp) = dfSeq(i).metaFeatures
-      nomMF = nomMF.union(nomTmp.withColumn("ds_name", fileNameDF(input_file_name)))
-      numMF = numMF.union(numTmp.withColumn("ds_name", fileNameDF(input_file_name)))
+      nomMF = nomMF.union(nomTmp)
+      numMF = numMF.union(numTmp)
       //      dsMF = dsMF.union(dsTmp)
     }
 
-    var nomZscore = StatMetaFeature.standarizeDF(nomMF, "nominal")
-    var numZscore = StatMetaFeature.standarizeDF(numMF, "numeric")
+    // scalastyle:off println
+//    println(s"${nomMF.count()}***")
+//    nomMF.show(10)
+    // scalastyle:on println
+
+    val nomZscore = StatMetaFeature.standarizeDF(nomMF, "nominal")
+    val numZscore = StatMetaFeature.standarizeDF(numMF, "numeric")
     //    StatMetaFeature.standarizeDF(dsMF, "datasets")
 
-    val attributes = dfOriginal.logicalPlan.output.map(_.name)
-    nomZscore.printSchema()
+    val attributes = dfSo.logicalPlan.output.map(_.name)
     var colsMeta = nomZscore.logicalPlan.output.map(_.name)
 
     val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
       .select(colsMeta.map(x => col(x).as(s"${x}_2")): _*)
 
-    var matching = nomZscore
+    var matching: DataFrame = null
     var flag = true
     colsMeta = colsMeta.filter(_ != "ds_name").filter(_ != "att_name")
 
@@ -65,17 +73,41 @@ object findJoinsObj {
       for (c <- colsMeta) {
         matchingTmp = matchingTmp.withColumn(c, abs(col(c) - col(s"${c}_2")))
       }
+      matchingTmp = matchingTmp.withColumn(
+        "name_dist", editDist(col("att_name"), col("att_name_2")))
+      matchingTmp = matchingTmp.drop(colsMeta.map(x => s"${x}_2"): _*)
       if (flag) {
         matching = matchingTmp
         flag = false
       } else {
-        matching = matching.union( matchingTmp.drop(colsMeta.map(x => s"${x}_2"): _*))
+        matching = matching.union(matchingTmp)
       }
     }
 
     (nomZscore, numZscore, matching)
   }
 
+  lazy val editDist = udf(levenshtein(_: String, _: String): Double)
 
-  def get_only_file_name(fullPath: String): String = fullPath.split("/").last
+  def levenshtein(s1: String, s2: String): Double = {
+    val memorizedCosts = Map[(Int, Int), Int]()
+
+    def lev: ((Int, Int)) => Int = {
+      case (k1, k2) =>
+        memorizedCosts.getOrElseUpdate((k1, k2), (k1, k2) match {
+          case (i, 0) => i
+          case (0, j) => j
+          case (i, j) =>
+            ParSeq(1 + lev((i - 1, j)),
+              1 + lev((i, j - 1)),
+              lev((i - 1, j - 1))
+                + (if (s1(i - 1) != s2(j - 1)) 1 else 0)).min
+        })
+    }
+
+    val leve = lev((s1.length, s2.length))
+    leve/max(s1.length, s2.length).toDouble
+  }
+
+
 }

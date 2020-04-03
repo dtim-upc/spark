@@ -2636,7 +2636,7 @@ class Dataset[T] private[sql](
     listJoinsDF
   }
 
-  def findJ(listDF: => Seq[DataFrame]): (DataFrame, DataFrame, DataFrame) = {
+  def findJ(listDF: => Seq[DataFrame]): (Dataset[_], Dataset[_], DataFrame) = {
     findJoinsObj.findJ(this, listDF)
   }
 

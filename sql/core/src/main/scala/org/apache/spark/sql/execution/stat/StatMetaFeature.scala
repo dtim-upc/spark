@@ -151,9 +151,9 @@ object StatMetaFeature extends Logging{
           resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
         }
 
-        var numericAtt = Dataset.ofRows(ds.sparkSession,
+        val numericAtt = Dataset.ofRows(ds.sparkSession,
           createMFRel(NumericMeta, numericA, filename))
-        var nominalAtt = Dataset.ofRows(ds.sparkSession,
+        val nominalAtt = Dataset.ofRows(ds.sparkSession,
           createMFRel(NominalMeta, nominalA, filename))
 
         saveMF(nomPath, nominalAtt)

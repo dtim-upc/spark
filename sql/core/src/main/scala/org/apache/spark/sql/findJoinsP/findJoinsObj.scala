@@ -21,23 +21,34 @@ import scala.collection.mutable.Map
 import scala.collection.parallel.ParSeq
 import scala.math.max
 
+// import org.apache.spark.ml.tuning.CrossValidator
 import org.apache.spark.sql.{DataFrame, Dataset}
 import org.apache.spark.sql.execution.stat.StatMetaFeature
 import org.apache.spark.sql.functions.{abs, col, input_file_name, lit, udf}
+import org.apache.spark.sql.types.{NumericType, StringType}
+
 
 object findJoinsObj {
 
 
+//  def findJoins(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_],
+//    Dataset[_], Dataset[_], Dataset[_]) = {
+//
+//
+//    val (nomZscore, numZscore, matching, matchingNum) = findJ(dfSo, dfSeq)
+//
+//    val cvModelLoaded = CrossValidatorModel.load(s"${pathR}/model/numericAtt")
+
+//  }
 
 
-  def findJ(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_], Dataset[_], DataFrame) = {
+    def findJ(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_],
+    Dataset[_], Dataset[_], Dataset[_]) = {
 
     var (dsMF, numMF, nomMF) = dfSo.metaFeatures
 
     // TODO: Make stronger file name to avoid duplications
-    nomMF = nomMF
-    numMF = numMF
-    val fileName = nomMF.select("ds_name").first().get(0).asInstanceOf[String]
+    val fileName = dfSo.inputFiles(0).split("/").last
 
     // compute metaFeatures for all datasets
     for (i <- 0 to dfSeq.size-1) {
@@ -56,15 +67,57 @@ object findJoinsObj {
     val numZscore = StatMetaFeature.standarizeDF(numMF, "numeric")
     //    StatMetaFeature.standarizeDF(dsMF, "datasets")
 
-    val attributes = dfSo.logicalPlan.output.map(_.name)
-    var colsMeta = nomZscore.logicalPlan.output.map(_.name)
+
+    val nominalA = dfSo.logicalPlan.output
+      .filter(a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
+    val numericA = dfSo.logicalPlan.output
+      .filter(a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
+
+//    val attributes = dfSo.logicalPlan.output.map(_.name)
+    val colsMeta = nomZscore.logicalPlan.output.map(_.name)
+    val colsMetaNum = numZscore.logicalPlan.output.map(_.name)
+    val matching = matchAtt(nominalA, colsMeta, nomZscore, fileName)
+    val matchingNum = matchAtt(numericA, colsMetaNum, numZscore, fileName)
+//
+//    val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
+//      .select(colsMeta.map(x => col(x).as(s"${x}_2")): _*)
+//
+//    var matching: DataFrame = null
+//    var flag = true
+//    colsMeta = colsMeta.filter(_ != "ds_name").filter(_ != "att_name")
+//
+//    for (att <- attributes) {
+//      var tmp = nomZscore.filter(col("ds_name") === fileName  && col("att_name") === att)
+//      var matchingTmp = tmp.crossJoin(nomAttCandidates)
+//      // compute distances and merge in the same column
+//      for (c <- colsMeta) {
+//        matchingTmp = matchingTmp.withColumn(c, abs(col(c) - col(s"${c}_2")))
+//      }
+//      matchingTmp = matchingTmp.withColumn(
+//        "name_dist", editDist(col("att_name"), col("att_name_2")))
+//      matchingTmp = matchingTmp.drop(colsMeta.map(x => s"${x}_2"): _*)
+//      if (flag) {
+//        matching = matchingTmp
+//        flag = false
+//      } else {
+//        matching = matching.union(matchingTmp)
+//      }
+//    }
+
+    (nomZscore, numZscore, matching, matchingNum)
+  }
+
+  def matchAtt(attributes: Seq[String], cols: Seq[String],
+              nomZscore: Dataset[_], fileName: String): Dataset[_] = {
+//    val attributes = dfSo.logicalPlan.output.map(_.name)
+//    var cols = nomZscore.logicalPlan.output.map(_.name)
 
     val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
-      .select(colsMeta.map(x => col(x).as(s"${x}_2")): _*)
+      .select(cols.map(x => col(x).as(s"${x}_2")): _*)
 
     var matching: DataFrame = null
     var flag = true
-    colsMeta = colsMeta.filter(_ != "ds_name").filter(_ != "att_name")
+    val colsMeta = cols.filter(_ != "ds_name").filter(_ != "att_name")
 
     for (att <- attributes) {
       var tmp = nomZscore.filter(col("ds_name") === fileName  && col("att_name") === att)
@@ -83,8 +136,7 @@ object findJoinsObj {
         matching = matching.union(matchingTmp)
       }
     }
-
-    (nomZscore, numZscore, matching)
+    matching
   }
 
   lazy val editDist = udf(levenshtein(_: String, _: String): Double)

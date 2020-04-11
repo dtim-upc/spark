@@ -77,8 +77,11 @@ object findJoinsObj {
     val colsMeta = nomZscore.logicalPlan.output.map(_.name)
     val colsMetaNum = numZscore.logicalPlan.output.map(_.name)
     val matching = matchAtt(nominalA, colsMeta, nomZscore, fileName)
-    val matchingNum = matchAtt(numericA, colsMetaNum, numZscore, fileName)
+    val matching2 = matchAtt(numericA, colsMetaNum, numZscore, fileName)
 //
+
+      val matchingNom = matching.na.fill(0, matching.logicalPlan.output.map(_.name))
+      val matchingNum = matching2.na.fill(0, matching2.logicalPlan.output.map(_.name) )
 //    val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
 //      .select(colsMeta.map(x => col(x).as(s"${x}_2")): _*)
 //
@@ -104,7 +107,7 @@ object findJoinsObj {
 //      }
 //    }
 
-    (nomZscore, numZscore, matching, matchingNum)
+    (nomZscore, numZscore, matchingNom, matchingNum)
   }
 
   def matchAtt(attributes: Seq[String], cols: Seq[String],

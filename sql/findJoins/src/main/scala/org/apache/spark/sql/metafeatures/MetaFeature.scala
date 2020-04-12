@@ -33,10 +33,9 @@ case class MetaFeature(
 //  override def toString: String = s"MetaFeatureAttributes($mean,$std,$min_val)"
 }
 
-object MetaFeatureDatasets{
+object MetaFeatureDatasets2{
  val ColDs = "ds_name"
 
- //**
  val NumInst = "num_instances"
  val NumAtt = "num_attributes"
  val Dim = "dimensionality"

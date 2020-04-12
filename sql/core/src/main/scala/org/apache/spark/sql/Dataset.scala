@@ -51,7 +51,7 @@ import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.python.EvaluatePython
 import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
-import org.apache.spark.sql.findJoinsP.findJoinsObj
+//import org.apache.spark.sql.findJoinsP.findJoinsObj
 import org.apache.spark.sql.functions.{abs, col, lit, udf}
 import org.apache.spark.sql.metafeatures.{MetaFeatureAttributes, MetaFeatureDataset}
 import org.apache.spark.sql.streaming.DataStreamWriter
@@ -2638,10 +2638,10 @@ class Dataset[T] private[sql](
     listJoinsDF
   }
 
-  def findJ(listDF: => Seq[DataFrame]): (Dataset[_],
-    Dataset[_], Dataset[_], Dataset[_]) = {
-    findJoinsObj.findJ(this, listDF)
-  }
+//  def findJ(listDF: => Seq[DataFrame]): (Dataset[_],
+//    Dataset[_], Dataset[_], Dataset[_]) = {
+//    findJoinsObj.findJ(this, listDF)
+//  }
 
 
 

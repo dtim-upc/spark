@@ -33,6 +33,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 object StatMetaFeature extends Logging{
 
+  //TODO: (JAV) change class location
   private val NumericAtt = "numeric"
   private val NominalType = "nominal"
   private val AllType = "all"

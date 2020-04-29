@@ -33,7 +33,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 object StatMetaFeature extends Logging{
 
-  //TODO: (JAV) change class location
+  // TODO: (JAV) change class location
   private val NumericAtt = "numeric"
   private val NominalType = "nominal"
   private val AllType = "all"
@@ -226,11 +226,15 @@ object StatMetaFeature extends Logging{
       minDf = minDf.withColumn("id", monotonically_increasing_id)
       val cross = minDf.join(maxDf, "id")
       cross.select( cols.map(x => (col(s"${x}_" + MaxVM)-col(x)).as(x)): _* )
+      val newDF = ds.sparkSession.createDataFrame(cross.rdd, cross.schema).cache()
+      newDF
     case CoVarM =>
       val meanDf = resA.getOrElseUpdate(MeanM, getMeta(MeanM, ds, cols))
       val std = resA.getOrElseUpdate(StdM, getMeta(MeanM, ds, cols))
       meanDf.select(cols.map(x => col(x).as(s"${x}_" + MeanM)): _*).crossJoin(std).
         select(cols.map(x => (col(x)/col(s"${x}_" + MeanM)).as(x)): _*)
+      val newDF = ds.sparkSession.createDataFrame(meanDf.rdd, meanDf.schema).cache()
+      newDF
     case SizeAvgM => aggregateNominalMeta(avg, ds, cols, false)
     case SizeMinM => aggregateNominalMeta(min, ds, cols, false)
     case SizeMaxM => aggregateNominalMeta(max, ds, cols, false)
@@ -244,11 +248,20 @@ object StatMetaFeature extends Logging{
       createDF(ds, data)
     case CntDistinct => createDF(ds, cols.map(x => x -> ds.select(col(x))
       .distinct.count))
-    case PctDistinct => resA.getOrElseUpdate(CntDistinct, getMeta(CntDistinct, ds, cols)).
+    case PctDistinct =>
+      val df = resA.getOrElseUpdate(CntDistinct, getMeta(CntDistinct, ds, cols)).
       select(cols.map(x => (col(x)/MetaDataset.numberInstances).as(x)): _*)
-    case PctMissing => ds.select(cols.map(c => (sum(col(c).isNull
+      val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
+      newDF
+    case PctMissing =>
+      val df = ds.select(cols.map(c => (sum(col(c).isNull
       .cast("int"))*100/MetaDataset.numberInstances).as(c)): _*)
-    case Valmissing => ds.select(cols.map(c => sum(col(c).isNull.cast("int")).as(c)): _*)
+      val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
+      newDF
+    case Valmissing =>
+      val df = ds.select(cols.map(c => sum(col(c).isNull.cast("int")).as(c)): _*)
+      val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
+      newDF
     case _ => throw new IllegalArgumentException(s"$meta is not a recognised meta")
   }
 
@@ -261,7 +274,10 @@ object StatMetaFeature extends Logging{
   }
 
   def aggregateNumericMeta(f: String => Column, ds: Dataset[_], cols: Seq[String]): DataFrame = {
-    ds.select(cols.map( x => f(x).as(x)): _*)
+    val df = ds.select(cols.map( x => f(x).as(x)): _*)
+    val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
+    newDF
+
   }
 
   def aggregateDatasetMeta(f: String => Column, ds: Dataset[_], meta: String, cols: Seq[String])
@@ -283,11 +299,16 @@ object StatMetaFeature extends Logging{
   def aggregateNominalMeta(f: Column => Column, ds: Dataset[_], cols: Seq[String],
                            perc: Boolean): DataFrame = {
     if (perc) {
-      ds.columns.map(x => ds.groupBy(x).count().select(
+      val df = ds.columns.map(x => ds.groupBy(x).count().select(
         max(col("count")*100/MetaDataset.numberInstances).as(x))).reduce((a, b) => a.crossJoin(b))
+
+      val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
+      newDF
     } else {
-      ds.columns.map(x => ds.groupBy(x).count().
+      val df = ds.columns.map(x => ds.groupBy(x).count().
         select(f(col("count")).as(x))).reduce((a, b) => a.crossJoin(b))
+      val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
+      newDF
     }
   }
 

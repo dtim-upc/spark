@@ -67,40 +67,22 @@ object FindJoinUtils {
    * @param metaType
    * @return
    */
-  def standarizeDF(df: Dataset[_], metaType: String): Dataset[_] = {
+  def normalizeDF(df: Dataset[_], metaType: String): DataFrame = {
     val zScoreUDF = udf(zScore(_: Double, _: Double, _: Double): Double)
-    val cols = getColumnsMeta(metaType)
+    val cols = getColumnsNamesMetaFeatures(metaType)
 
     val meanAndStd = cols.map(x => df.select(mean(col(x)).as(s"${x}_avg"),
       stddev(col(x)).as(s"${x}_std"))
       .withColumn("id", monotonically_increasing_id))
       .reduce(_.join(_, "id")).take(1).head
-    // scalastyle:off println
-    //    println(s"${metaType}***")
-    //    cols.map(println)
-    //    println(meanAndStd.toString)
-    // scalastyle:on println
 
     var zScoreDF = df
     for (c <- cols) {
       zScoreDF = zScoreDF.withColumn(c,
-        (col(c) - lit(meanAndStd.getAs(s"${c}_avg")))
-          /  lit(meanAndStd.getAs(s"${c}_std")))
+        (col(c) - lit(meanAndStd.getAs(s"${c}_avg"))) /  lit(meanAndStd.getAs(s"${c}_std")))
     }
-
-
-    //    val a = cols.map(x =>
-    //      df.select(col(MetaFeatureDatasets.ColDs), col(ColAtt),
-    //      zScoreUDF( col(x), lit(meanAndStd.getAs(s"${x}_avg")),
-    //        lit(meanAndStd.getAs(s"${x}_std"))).as(x)))
-    //       .reduce(_.join(_, Seq(MetaFeatureDatasets.ColDs, ColAtt)))
-
-    // scalastyle:off println
-    //    println(s"${zScoreDF.count()} :) ***")
-    //    zScoreDF.show(10)
-    // scalastyle:on println
-    //    a
-    zScoreDF
+    val dataF = zScoreDF.toDF()
+    df.sparkSession.createDataFrame(dataF.rdd, dataF.schema).cache()
 
   }
 
@@ -108,7 +90,7 @@ object FindJoinUtils {
     (x - avgVal) / stdVal
   }
 
-  private def getColumnsMeta(metaType: String): Seq[String] = metaType match {
+  def getColumnsNamesMetaFeatures(metaType: String): Seq[String] = metaType match {
     case "numeric" => NumericMeta.keySet.toSeq
     case "nominal" => NominalMeta.keySet.toSeq
     case "datasets" => MetaFeatureDatasets2.cols()

@@ -25,6 +25,7 @@ import scala.collection.parallel.ParSeq
 import scala.math.max
 import scala.reflect.io.Directory
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel}
 import org.apache.spark.sql.functions.{abs, col, desc, input_file_name, lit, udf}
 import org.apache.spark.sql.types.{NumericType, StringType}
@@ -33,10 +34,7 @@ import org.apache.spark.sql.utils.{FindJoinUtils, Unzip}
 
 
 
-object findJoins {
-
-
-
+object findJoins extends  Logging {
 
   def performJoins(dfNom: DataFrame, dfNum: DataFrame, threshold: Double, dfS: Seq[DataFrame] )
     : Seq[DataFrame] = {
@@ -79,25 +77,13 @@ object findJoins {
   : Seq[DataFrame] = {
 
 
-    val tmp = findJ(dfSource, dfCandidates)
+    val tmp = computeDistances(dfSource, dfCandidates)
     val nomZscore = tmp._1
     val numZscore = tmp._2
     val matchingNom = tmp._3
     val matchingNum = tmp._4
 
-//    val pathM = getClass.getResource("/model").getPath
-//    val pathTemp =
-//    val outputFolder = Files.createTempDirectory("modelsFJ");
-//
-//
-//    val a  = ZipFile
-//
-//    new ZipFile("filename.zip").extractAll("/destination_directory");
     val pathM = Unzip.unZipIt(getClass.getResourceAsStream("/model.zip") )
-    // scalastyle:off println
-    println("********HOLI********")
-    println(pathM)
-    // scalastyle:on println
                                      
     val modelRFNum = CrossValidatorModel.load(s"${pathM}/model/numericAtt")
     val modelRF = CrossValidatorModel.load(s"${pathM}/model/nominalAtt")
@@ -110,106 +96,88 @@ object findJoins {
 
     performJoins(predictionNomDF, predictionNumDF, threshold, dfSource +: dfCandidates)
 
-
   }
 
-  def findJ(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_],
+  def isCached(df: DataFrame): Boolean = df.sparkSession.sharedState.cacheManager
+    .lookupCachedData(df.queryExecution.logical).isDefined
+
+  def computeDistances(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_],
     Dataset[_], Dataset[_], Dataset[_]) = {
 
     var (dsMF, numMF, nomMF) = dfSo.metaFeatures
-
-    // TODO: Make stronger file name to avoid duplications
     val fileName = dfSo.inputFiles(0).split("/").last
 
-    // compute metaFeatures for all datasets
+    // compute metaFeatures for all datasets and merge them in two dataframes: nominal and numeric
     for (i <- 0 to dfSeq.size-1) {
       var (dsTmp, numTmp, nomTmp) = dfSeq(i).metaFeatures
       nomMF = nomMF.union(nomTmp)
       numMF = numMF.union(numTmp)
-      //      dsMF = dsMF.union(dsTmp)
     }
 
-    // scalastyle:off println
-    //    println(s"${nomMF.count()}***")
-    //    nomMF.show(10)
-    // scalastyle:on println
+    nomMF = dfSo.sparkSession.createDataFrame(nomMF.rdd, nomMF.schema).cache()
+    numMF = dfSo.sparkSession.createDataFrame(numMF.rdd, numMF.schema).cache()
 
-      val nomZscore = FindJoinUtils.standarizeDF(nomMF, "nominal")
-    val numZscore = FindJoinUtils.standarizeDF(numMF, "numeric")
-    //    StatMetaFeature.standarizeDF(dsMF, "datasets")
+    // normalization
+    val nomZscore = FindJoinUtils.normalizeDF(nomMF, "nominal")
+    val numZscore = FindJoinUtils.normalizeDF(numMF, "numeric")
 
 
-    val nominalA = dfSo.logicalPlan.output
-      .filter(a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
-    val numericA = dfSo.logicalPlan.output
-      .filter(a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
+    val attributesNominal = dfSo.logicalPlan.output.filter(
+      a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
+    val attributesNumeric = dfSo.logicalPlan.output.filter(
+      a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
 
-    //    val attributes = dfSo.logicalPlan.output.map(_.name)
-    val colsMeta = nomZscore.logicalPlan.output.map(_.name)
-    val colsMetaNum = numZscore.logicalPlan.output.map(_.name)
-    val matching = matchAtt(nominalA, colsMeta, nomZscore, fileName)
-    val matching2 = matchAtt(numericA, colsMetaNum, numZscore, fileName)
-    //
+    val columnsMetaFeaturesNominal = nomZscore.logicalPlan.output.map(_.name)
+    val columnsMetaFeaturesNumeric = numZscore.logicalPlan.output.map(_.name)
 
-    val matchingNom = matching.na.fill(0, matching.logicalPlan.output.map(_.name))
-    val matchingNum = matching2.na.fill(0, matching2.logicalPlan.output.map(_.name) )
-    //    val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
-    //      .select(colsMeta.map(x => col(x).as(s"${x}_2")): _*)
-    //
-    //    var matching: DataFrame = null
-    //    var flag = true
-    //    colsMeta = colsMeta.filter(_ != "ds_name").filter(_ != "att_name")
-    //
-    //    for (att <- attributes) {
-    //      var tmp = nomZscore.filter(col("ds_name") === fileName  && col("att_name") === att)
-    //      var matchingTmp = tmp.crossJoin(nomAttCandidates)
-    //      // compute distances and merge in the same column
-    //      for (c <- colsMeta) {
-    //        matchingTmp = matchingTmp.withColumn(c, abs(col(c) - col(s"${c}_2")))
-    //      }
-    //      matchingTmp = matchingTmp.withColumn(
-    //        "name_dist", editDist(col("att_name"), col("att_name_2")))
-    //      matchingTmp = matchingTmp.drop(colsMeta.map(x => s"${x}_2"): _*)
-    //      if (flag) {
-    //        matching = matchingTmp
-    //        flag = false
-    //      } else {
-    //        matching = matching.union(matchingTmp)
-    //      }
-    //    }
+    // creates pair and perform distances
+    val matchingNom = matchAtt(attributesNominal, columnsMetaFeaturesNominal, nomZscore, fileName)
+    val matchingNum = matchAtt(attributesNumeric, columnsMetaFeaturesNumeric, numZscore, fileName)
+
+//    val matchingNom = matching.na.fill(0, matching.logicalPlan.output.map(_.name))
+//    val matchingNum = matching2.na.fill(0, matching2.logicalPlan.output.map(_.name) )
 
     (nomZscore, numZscore, matchingNom, matchingNum)
   }
 
   def matchAtt(attributes: Seq[String], cols: Seq[String],
                nomZscore: Dataset[_], fileName: String): Dataset[_] = {
-    //    val attributes = dfSo.logicalPlan.output.map(_.name)
-    //    var cols = nomZscore.logicalPlan.output.map(_.name)
 
     val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
-      .select(cols.map(x => col(x).as(s"${x}_2")): _*)
+      .select(cols.map(x => col(x).as(s"${x}_2")): _*).cache()
+
 
     var matching: DataFrame = null
     var flag = true
     val colsMeta = cols.filter(_ != "ds_name").filter(_ != "att_name")
 
+    var nomSourceAtt = nomZscore.filter(col("ds_name") === fileName).cache()
+
     for (att <- attributes) {
-      var tmp = nomZscore.filter(col("ds_name") === fileName  && col("att_name") === att)
-      var matchingTmp = tmp.crossJoin(nomAttCandidates)
-      // compute distances and merge in the same column
+
+      var matchingTmp = nomSourceAtt.filter( col("att_name") === att).crossJoin(nomAttCandidates)
+      // compute the distances for c meta-feature from two attributes meta-features
       for (c <- colsMeta) {
         matchingTmp = matchingTmp.withColumn(c, abs(col(c) - col(s"${c}_2")))
       }
       matchingTmp = matchingTmp.withColumn(
         "name_dist", editDist(col("att_name"), col("att_name_2")))
+
       matchingTmp = matchingTmp.drop(colsMeta.map(x => s"${x}_2"): _*)
       if (flag) {
         matching = matchingTmp
         flag = false
       } else {
         matching = matching.union(matchingTmp)
+        matching = nomZscore.sparkSession
+          .createDataFrame(matching.rdd, matching.schema).cache()
+
       }
     }
+    // scalastyle:off println
+    println("return matching")
+    logWarning("return matching")
+    // scalastyle:on println
     matching
   }
 

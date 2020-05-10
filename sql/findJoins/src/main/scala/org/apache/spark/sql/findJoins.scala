@@ -29,10 +29,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel}
 import org.apache.spark.sql.functions.{abs, col, desc, input_file_name, lit, udf}
 import org.apache.spark.sql.types.{NumericType, StringType}
-import org.apache.spark.sql.utils.{FindJoinUtils, Unzip}
-
-
-
+import org.apache.spark.sql.utils.FindJoinUtils.{getColumnsNamesMetaFeatures, normalizeDF}
+import org.apache.spark.sql.utils.Unzip
 
 object findJoins extends  Logging {
 
@@ -101,84 +99,65 @@ object findJoins extends  Logging {
   def isCached(df: DataFrame): Boolean = df.sparkSession.sharedState.cacheManager
     .lookupCachedData(df.queryExecution.logical).isDefined
 
-  def computeDistances(dfSo: Dataset[_], dfSeq: Seq[Dataset[_]]) : (Dataset[_],
+  def computeDistances(dfSource: DataFrame, dfCandidates: Seq[DataFrame]): (Dataset[_],
     Dataset[_], Dataset[_], Dataset[_]) = {
+    var (datasetMetaFeatures, numericMetaFeatures, nominalMetaFeatures) = dfSource.metaFeatures
 
-    var (dsMF, numMF, nomMF) = dfSo.metaFeatures
-    val fileName = dfSo.inputFiles(0).split("/").last
+    val fileName = dfSource.inputFiles(0).split("/").last
 
     // compute metaFeatures for all datasets and merge them in two dataframes: nominal and numeric
-    for (i <- 0 to dfSeq.size-1) {
-      var (dsTmp, numTmp, nomTmp) = dfSeq(i).metaFeatures
-      nomMF = nomMF.union(nomTmp)
-      numMF = numMF.union(numTmp)
+    for (i <- 0 to dfCandidates.size-1) {
+      var (mftmp, numericMetaFeaturesTmp, nominalMetaFeaturesTmp) = dfCandidates(i).metaFeatures
+      nominalMetaFeatures = nominalMetaFeatures.union(nominalMetaFeaturesTmp)
+      numericMetaFeatures = numericMetaFeatures.union(numericMetaFeaturesTmp)
     }
 
-    nomMF = dfSo.sparkSession.createDataFrame(nomMF.rdd, nomMF.schema).cache()
-    numMF = dfSo.sparkSession.createDataFrame(numMF.rdd, numMF.schema).cache()
-
-    // normalization
-    val nomZscore = FindJoinUtils.normalizeDF(nomMF, "nominal")
-    val numZscore = FindJoinUtils.normalizeDF(numMF, "numeric")
+    // normalization using z-score
+    val nomZscore = normalizeDF(nominalMetaFeatures, "nominal")
+    val numZscore = normalizeDF(numericMetaFeatures, "numeric")
 
 
-    val attributesNominal = dfSo.logicalPlan.output.filter(
+    val attributesNominal = dfSource.schema.filter(
       a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
-    val attributesNumeric = dfSo.logicalPlan.output.filter(
+    val attributesNumeric = dfSource.schema.filter(
       a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
 
-    val columnsMetaFeaturesNominal = nomZscore.logicalPlan.output.map(_.name)
-    val columnsMetaFeaturesNumeric = numZscore.logicalPlan.output.map(_.name)
+    val matchingNom = createPairs(attributesNominal,
+      getColumnsNamesMetaFeatures("nominal"), nomZscore, fileName)
+    val matchingNum = createPairs(attributesNumeric,
+      getColumnsNamesMetaFeatures("numeric"), numZscore, fileName)
 
-    // creates pair and perform distances
-    val matchingNom = matchAtt(attributesNominal, columnsMetaFeaturesNominal, nomZscore, fileName)
-    val matchingNum = matchAtt(attributesNumeric, columnsMetaFeaturesNumeric, numZscore, fileName)
-
-//    val matchingNom = matching.na.fill(0, matching.logicalPlan.output.map(_.name))
-//    val matchingNum = matching2.na.fill(0, matching2.logicalPlan.output.map(_.name) )
+//    val matchingNom1 = matchingNom.na.fill(0, matchingNom.logicalPlan.output.map(_.name))
+//    val matchingNum1 = matchingNum.na.fill(0, matchingNum.logicalPlan.output.map(_.name) )
 
     (nomZscore, numZscore, matchingNom, matchingNum)
   }
 
-  def matchAtt(attributes: Seq[String], cols: Seq[String],
-               nomZscore: Dataset[_], fileName: String): Dataset[_] = {
 
-    val nomAttCandidates = nomZscore.filter(col("ds_name") =!= fileName)
-      .select(cols.map(x => col(x).as(s"${x}_2")): _*).cache()
+  def createPairs(attributes: Seq[String], metaFeaturesNames: Seq[String], zScoreDF: Dataset[_],
+                  fileName: String): Dataset[_] = {
 
+    val columns = zScoreDF.schema.map(_.name)
 
-    var matching: DataFrame = null
-    var flag = true
-    val colsMeta = cols.filter(_ != "ds_name").filter(_ != "att_name")
+    val nomAttCandidates = zScoreDF.filter(col("ds_name") =!= fileName)
+      .select(columns.map(x => col(x).as(s"${x}_2")): _*).cache()
 
-    var nomSourceAtt = nomZscore.filter(col("ds_name") === fileName).cache()
+    // select the normalized meta-features from the dataset source
+    // perform a cross join with the attributes from other datasets
+    val tmp = zScoreDF.filter(col("ds_name") === fileName).crossJoin(nomAttCandidates)
+    // forcing cache of the distances
+    var attributesPairs = zScoreDF.sparkSession.createDataFrame(tmp.rdd, tmp.schema).cache()
 
-    for (att <- attributes) {
-
-      var matchingTmp = nomSourceAtt.filter( col("att_name") === att).crossJoin(nomAttCandidates)
-      // compute the distances for c meta-feature from two attributes meta-features
-      for (c <- colsMeta) {
-        matchingTmp = matchingTmp.withColumn(c, abs(col(c) - col(s"${c}_2")))
-      }
-      matchingTmp = matchingTmp.withColumn(
-        "name_dist", editDist(col("att_name"), col("att_name_2")))
-
-      matchingTmp = matchingTmp.drop(colsMeta.map(x => s"${x}_2"): _*)
-      if (flag) {
-        matching = matchingTmp
-        flag = false
-      } else {
-        matching = matching.union(matchingTmp)
-        matching = nomZscore.sparkSession
-          .createDataFrame(matching.rdd, matching.schema).cache()
-
-      }
+    for (metafeature <- metaFeaturesNames) {
+      attributesPairs = attributesPairs.withColumn(
+        metafeature, abs(col(metafeature) - col(s"${metafeature}_2")))
     }
-    // scalastyle:off println
-    println("return matching")
-    logWarning("return matching")
-    // scalastyle:on println
-    matching
+    // compute the distance name from the two attributes pair
+    attributesPairs = attributesPairs.withColumn(
+      "name_dist", editDist(col("att_name"), col("att_name_2")))
+
+    // remove the meta-features columns from the second attribute pair
+    attributesPairs.drop(metaFeaturesNames.map(x => s"${x}_2"): _*)
   }
 
   lazy val editDist = udf(levenshtein(_: String, _: String): Double)

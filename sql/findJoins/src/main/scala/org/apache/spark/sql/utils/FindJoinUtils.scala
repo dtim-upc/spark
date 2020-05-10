@@ -40,6 +40,7 @@ object FindJoinUtils {
   private val SizeMinM = "val_size_min"
   private val SizeMaxM = "val_size_max"
   private val SizeStdMax = "val_size_std"
+  private val SizeCoVarMax = "val_size_co_of_var"
   private val PctMinM = "val_pct_min"
   private val PctMaxM = "val_pct_max"
   private val PctStdM = "val_pct_std"
@@ -59,7 +60,7 @@ object FindJoinUtils {
   val NumericMeta = AllMeta ++ InMap(MeanM -> NumericAtt, StdM -> NumericAtt, MinVM -> NumericAtt,
     MaxVM -> NumericAtt, RangeM -> NumericAtt, CoVarM -> NumericAtt)
   val NominalMeta = AllMeta ++ InMap(SizeAvgM -> NominalType, PctMedian -> NominalType,
-    SizeMinM -> NominalType, SizeMaxM -> NominalType, SizeStdMax -> NominalType,
+    SizeMinM -> NominalType, SizeMaxM -> NominalType, SizeCoVarMax -> NominalType,
     PctMinM -> NominalType, PctMaxM -> NominalType, PctStdM -> NominalType)
   /**
    *
@@ -68,14 +69,17 @@ object FindJoinUtils {
    * @return
    */
   def normalizeDF(df: Dataset[_], metaType: String): DataFrame = {
-    val zScoreUDF = udf(zScore(_: Double, _: Double, _: Double): Double)
+//    val zScoreUDF = udf(zScore(_: Double, _: Double, _: Double): Double)
     val cols = getColumnsNamesMetaFeatures(metaType)
 
-    val meanAndStd = cols.map(x => df.select(mean(col(x)).as(s"${x}_avg"),
+    var meanAndStdDF = cols.map(x => df.select(mean(col(x)).as(s"${x}_avg"),
       stddev(col(x)).as(s"${x}_std"))
       .withColumn("id", monotonically_increasing_id))
-      .reduce(_.join(_, "id")).take(1).head
+      .reduce(_.join(_, "id"))
 
+    meanAndStdDF.show
+
+    val meanAndStd = meanAndStdDF.take(1).head
     var zScoreDF = df
     for (c <- cols) {
       zScoreDF = zScoreDF.withColumn(c,
@@ -86,9 +90,9 @@ object FindJoinUtils {
 
   }
 
-  private def zScore(x: Double, avgVal: Double, stdVal: Double): Double = {
-    (x - avgVal) / stdVal
-  }
+//  private def zScore(x: Double, avgVal: Double, stdVal: Double): Double = {
+//    (x - avgVal) / stdVal
+//  }
 
   def getColumnsNamesMetaFeatures(metaType: String): Seq[String] = metaType match {
     case "numeric" => NumericMeta.keySet.toSeq

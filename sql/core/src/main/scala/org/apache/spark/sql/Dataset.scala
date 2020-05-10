@@ -51,9 +51,6 @@ import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.python.EvaluatePython
 import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
-//import org.apache.spark.sql.findJoinsP.findJoinsObj
-import org.apache.spark.sql.functions.{abs, col, lit, udf}
-import org.apache.spark.sql.metafeatures.{MetaFeatureAttributes, MetaFeatureDataset}
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.SchemaUtils
@@ -2548,7 +2545,7 @@ class Dataset[T] private[sql](
   lazy val metaFeatures: (DataFrame, DataFrame, DataFrame)
     = StatMetaFeature.computeMetaFeature(this)
   // Later should change to DataFrame
-  private[sql] var joinResult: String = ""
+
 
   def computeMetaFeatures: Dataset[T] = {
     this.metaFeatures
@@ -2558,98 +2555,17 @@ class Dataset[T] private[sql](
     this
   }
 
-  def findJoins(dfs: DataFrame*): Seq[DataFrame] = {
-    findJoins(dfs)
-  }
-
-  def findJoins(listDF: => Seq[DataFrame]): Seq[DataFrame] = {
-    var listJoinsDF = Seq[DataFrame]()
-
-    val mapping = Map("id"->"identifier", "edad"->"age", "nombre"->"name")
-
-    this.joinResult = joinResult + s"\n\t\t DATAFRAMES \t\t\t\t " +
-      s"CANDIDATES ATTRIBUTES \t\t\t JOIN-SCORE \n"
-
-    // auxiliar number of possible joins
-    //    val numAttributes = if (this.logicalPlan.output.size > 4) 3 else 1
-    val numAttributes = this.logicalPlan.output.size-1
-    // scalastyle:off println
-    println("computing metadata for main dataset")
-    // scalastyle:on println
-    val ds1Meta = this.metaFeatures
-    for (i <- 0 to listDF.size-1) {
-      // scalastyle:off println
-      println(s"computing metadata for dataset $i in the sequence")
-      // scalastyle:on println
-      val ds2Meta = listDF(i).metaFeatures
-
-      val joinScore = 0.0
-      val joinAttScore = 0.0
-
-      for (j <- 0 to numAttributes) {
-        val a1 = this.logicalPlan.output(j).name
-        var a2 = ""
-        val colnames = listDF(i).logicalPlan.output.map(_.name)
-        a1 match {
-          case "id" =>
-            a2 = if (colnames.contains("id")) "id" else "identifier"
-          case "identifier" =>
-            a2 = "id"
-          case "edad" =>
-            a2 = if (colnames.contains("edad")) "edad" else "age"
-          case "age" =>
-            a2 = "edad"
-          case "nombre" =>
-            a2 = if (colnames.contains("nombre")) "nombre" else "name"
-          case "name" =>
-            a2 = "nombre"
-          case _ =>
-            a2 = ""
-        }
-
-        // scalastyle:off println
-        if (colnames.contains(a2)) {
-          this.joinResult = joinResult + s"\t Main DF and DataFrame[$i] \t main.$a1 " +
-            s"and DataFrame[$i].$a2 \t\t $joinScore \n"
-
-          val joinExpression = this.col(a1) === listDF(i).col(a2)
-          listJoinsDF = listJoinsDF :+ this.join(listDF(i), joinExpression)
-        }
-        // scalastyle:on println
-
-
-//        if (j < listDF(i).logicalPlan.output.size) {
-//          val a1 = this.logicalPlan.output(j).name
-//          val a2 = listDF(i).logicalPlan.output(j).name
+//  def findJoins(threshold: Double, dfs: DataFrame*): Seq[DataFrame] = {
+//    findJoins(threshold, dfs)
+//  }
 //
-//          // scalastyle:off println
-//          this.joinResult = joinResult + s"\t Main DF and DataFrame[$i] \t main.$a1 " +
-//            s"and DataFrame[$i].$a2 \t\t $joinScore \n"
 //
-//          val joinExpression = this.col(a1) === listDF(i).col(a2)
-//          listJoinsDF = listJoinsDF :+ this.join(listDF(i), joinExpression)
-//          // scalastyle:on println
-//        }
-      }
-    }
-    // scalastyle:off println
-    println(this.joinResult)
-    // scalastyle:on println
-    listJoinsDF
-  }
-
-//  def findJ(listDF: => Seq[DataFrame]): (Dataset[_],
-//    Dataset[_], Dataset[_], Dataset[_]) = {
-//    findJoinsObj.findJ(this, listDF)
+//  def findJoins(threshold: Double, listDF: => Seq[DataFrame]): Seq[DataFrame] = {
+//    findJ(this.asInstanceOf[DataFrame], listDF, threshold)
 //  }
 
 
 
-  def showJoinPredicates(): Unit = {
-    // scalastyle:off println
-    println(this.joinResult)
-    // scalastyle:on println
-  }
   /**
    * Returns the first `n` rows.
    *

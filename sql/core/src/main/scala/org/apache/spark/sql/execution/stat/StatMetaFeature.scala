@@ -53,6 +53,7 @@ object StatMetaFeature extends Logging{
   private val SizeMinM = "val_size_min"
   private val SizeMaxM = "val_size_max"
   private val SizeStdMax = "val_size_std"
+  private val SizeCoVarMax = "val_size_co_of_var"
   private val PctMinM = "val_pct_min"
   private val PctMaxM = "val_pct_max"
   private val PctStdM = "val_pct_std"
@@ -60,6 +61,7 @@ object StatMetaFeature extends Logging{
   private val PctDistinct = "distinct_values_pct"
   private val PctMissing = "missing_values_pct"
   private val PctMedian = "val_pct_median"
+  private val Empty = "isEmpty" // when columns have 100% missing values
   // extra meta-feature
   private val Valmissing = "missing_values"
 
@@ -72,7 +74,7 @@ object StatMetaFeature extends Logging{
   val NumericMeta = AllMeta ++ InMap(MeanM -> NumericAtt, StdM -> NumericAtt, MinVM -> NumericAtt,
     MaxVM -> NumericAtt, RangeM -> NumericAtt, CoVarM -> NumericAtt)
   val NominalMeta = AllMeta ++ InMap(SizeAvgM -> NominalType, PctMedian -> NominalType,
-    SizeMinM -> NominalType, SizeMaxM -> NominalType, SizeStdMax -> NominalType,
+    SizeMinM -> NominalType, SizeMaxM -> NominalType, SizeCoVarMax -> NominalType,
     PctMinM -> NominalType, PctMaxM -> NominalType, PctStdM -> NominalType)
 
   def computeMetaFeature(ds: Dataset[_]): (DataFrame, DataFrame, DataFrame) = {
@@ -100,8 +102,8 @@ object StatMetaFeature extends Logging{
     MetaDataset.avgNominal = aggregateDatasetMeta(avg, ds, CntDistinct, nominalA)
     MetaDataset.avgNumeric = aggregateDatasetMeta(avg, ds, MeanM, numericA)
 
-    MetaDataset.stdNominal = aggregateDatasetMeta(stddev, ds, CntDistinct, nominalA)
-    MetaDataset.stdNumeric = aggregateDatasetMeta(stddev, ds, MeanM, numericA)
+    MetaDataset.stdNominal = aggregateDatasetMeta(stddev_pop, ds, CntDistinct, nominalA)
+    MetaDataset.stdNumeric = aggregateDatasetMeta(stddev_pop, ds, MeanM, numericA)
 
     MetaDataset.minNominal = aggregateDatasetMeta(min, ds, CntDistinct, nominalA)
     MetaDataset.maxNominal = aggregateDatasetMeta(max, ds, CntDistinct, nominalA)
@@ -126,7 +128,7 @@ object StatMetaFeature extends Logging{
       *100/MetaDataset.numberAttributes).cast("double")).first().get(0).asInstanceOf[Double]
 
 
-    // TODO: Handle when more files and save metadata
+    // TODO: Handle when more files and save metadata and when is null!!!
     val filename = ds.inputFiles(0).split("/").last
     val path = ds.inputFiles(0)
 
@@ -149,7 +151,9 @@ object StatMetaFeature extends Logging{
         // compute content meta-features
         for ((k, v) <- defaultMeta) {
           val selectCols = getColumns(v, numericA, nominalA, attributes)
-          resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
+          if(selectCols.size > 0) {
+            resA.getOrElseUpdate(k, getMeta(k, ds, selectCols))
+          }
         }
 
         val numericAtt = Dataset.ofRows(ds.sparkSession,
@@ -157,11 +161,14 @@ object StatMetaFeature extends Logging{
         val nominalAtt = Dataset.ofRows(ds.sparkSession,
           createMFRel(NominalMeta, nominalA, filename))
 
-        saveMF(nomPath, nominalAtt)
-        saveMF(numPath, numericAtt)
+        val numeric = numericAtt.withColumn(Empty, when(col(PctMissing) === 100, 1).otherwise(0))
+        val nominal = nominalAtt.withColumn(Empty, when(col(PctMissing) === 100, 1).otherwise(0))
+
+        saveMF(nomPath, nominal)
+        saveMF(numPath, numeric)
         (dsMeta, ds.sparkSession.read.load(numPath), ds.sparkSession.read.load(nomPath))
       case _:
-        // TODO: handle it
+        // TODO: handle it@
         // scalastyle:off println
         Throwable => println("Got some other kind of Throwable exception")
         // scalastyle:on println
@@ -179,7 +186,6 @@ object StatMetaFeature extends Logging{
     ds.write.mode(SaveMode.Overwrite).format("parquet").save(path)
   }
 
-  // TODO: handle empty attSeq
   def createMFRel(meta: InMap[String, String], attSeq: Seq[String], f: String): LocalRelation = {
     val rowsSize = attSeq.length
     val result = Array.fill[InternalRow](rowsSize)
@@ -214,9 +220,9 @@ object StatMetaFeature extends Logging{
   }
 
 
-  private def getMeta(meta: String, ds: Dataset[_], cols: Seq[String]): DataFrame = meta match {
+  def getMeta(meta: String, ds: Dataset[_], cols: Seq[String]): DataFrame = meta match {
     case MeanM => aggregateNumericMeta(mean, ds, cols)
-    case StdM => aggregateNumericMeta(stddev, ds, cols)
+    case StdM => aggregateNumericMeta(stddev_pop, ds, cols)
     case MinVM => aggregateNumericMeta(min, ds, cols)
     case MaxVM => aggregateNumericMeta(max, ds, cols)
     case RangeM =>
@@ -225,29 +231,39 @@ object StatMetaFeature extends Logging{
       maxDf = maxDf.withColumn("id", monotonically_increasing_id)
       minDf = minDf.withColumn("id", monotonically_increasing_id)
       val cross = minDf.join(maxDf, "id")
-      cross.select( cols.map(x => (col(s"${x}_" + MaxVM)-col(x)).as(x)): _* )
+        .select( cols.map(x => (col(s"${x}_" + MaxVM)-col(x)).as(x)): _* )
       val newDF = ds.sparkSession.createDataFrame(cross.rdd, cross.schema).cache()
       newDF
     case CoVarM =>
-      val meanDf = resA.getOrElseUpdate(MeanM, getMeta(MeanM, ds, cols))
-      val std = resA.getOrElseUpdate(StdM, getMeta(MeanM, ds, cols))
-      meanDf.select(cols.map(x => col(x).as(s"${x}_" + MeanM)): _*).crossJoin(std).
+      var meanDf = resA.getOrElseUpdate(MeanM, getMeta(MeanM, ds, cols))
+      val std = resA.getOrElseUpdate(StdM, getMeta(StdM, ds, cols))
+      meanDf = meanDf.select(cols.map(x => col(x).as(s"${x}_" + MeanM)): _*).crossJoin(std).
         select(cols.map(x => (col(x)/col(s"${x}_" + MeanM)).as(x)): _*)
       val newDF = ds.sparkSession.createDataFrame(meanDf.rdd, meanDf.schema).cache()
       newDF
     case SizeAvgM => aggregateNominalMeta(avg, ds, cols, false)
     case SizeMinM => aggregateNominalMeta(min, ds, cols, false)
     case SizeMaxM => aggregateNominalMeta(max, ds, cols, false)
-    case SizeStdMax => aggregateNominalMeta(stddev, ds, cols, false)
+    case SizeStdMax => aggregateNominalMeta(stddev_pop, ds, cols, false)
+    case SizeCoVarMax =>
+
+      var meanDf = resA.getOrElseUpdate(SizeAvgM, getMeta(SizeAvgM, ds, cols))
+      val std = resA.getOrElseUpdate(SizeStdMax, getMeta(SizeStdMax, ds, cols))
+
+      meanDf = meanDf.select(cols.map(x => col(x).as(s"${x}_" + MeanM)): _*).crossJoin(std).
+        select(cols.map(x => (col(x)/col(s"${x}_" + MeanM)).as(x)): _*)
+      val newDF = ds.sparkSession.createDataFrame(meanDf.rdd, meanDf.schema).cache()
+      newDF
     case PctMinM => aggregateNominalMeta(min, ds, cols, true)
     case PctMaxM => aggregateNominalMeta(max, ds, cols, true)
-    case PctStdM => aggregateNominalMeta(stddev, ds, cols, true)
+    case PctStdM => aggregateNominalMeta(stddev_pop, ds, cols, true)
     case PctMedian =>
       val dfTmp = getMeta(CntDistinct, ds, cols).select(cols.map(col(_).cast("double")): _*)
       val data = cols.map(x => x -> dfTmp.stat.approxQuantile(x, Array(0.5), 0.25)(0).longValue())
       createDF(ds, data)
-    case CntDistinct => createDF(ds, cols.map(x => x -> ds.select(col(x))
+    case CntDistinct => createDF(ds, cols.map(x => x -> ds.select(col(x)).na.drop
       .distinct.count))
+      // TODO: change for agg someDF.select(col("project")).agg(countDistinct("project")).show
     case PctDistinct =>
       val df = resA.getOrElseUpdate(CntDistinct, getMeta(CntDistinct, ds, cols)).
       select(cols.map(x => (col(x)/MetaDataset.numberInstances).as(x)): _*)
@@ -299,13 +315,13 @@ object StatMetaFeature extends Logging{
   def aggregateNominalMeta(f: Column => Column, ds: Dataset[_], cols: Seq[String],
                            perc: Boolean): DataFrame = {
     if (perc) {
-      val df = ds.columns.map(x => ds.groupBy(x).count().select(
-        max(col("count")*100/MetaDataset.numberInstances).as(x))).reduce((a, b) => a.crossJoin(b))
+      val df = cols.map(x => ds.select(x).na.drop.groupBy(x).count().select(
+        f(col("count")*100/MetaDataset.numberInstances).as(x))).reduce((a, b) => a.crossJoin(b))
 
       val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
       newDF
     } else {
-      val df = ds.columns.map(x => ds.groupBy(x).count().
+      val df = cols.map(x => ds.select(x).na.drop.groupBy(x).count().
         select(f(col("count")).as(x))).reduce((a, b) => a.crossJoin(b))
       val newDF = ds.sparkSession.createDataFrame(df.rdd, df.schema).cache()
       newDF
@@ -327,7 +343,7 @@ object StatMetaFeature extends Logging{
     val cols = getColumnsMeta(metaType)
 
     val meanAndStd = cols.map(x => df.select(mean(col(x)).as(s"${x}_avg"),
-      stddev(col(x)).as(s"${x}_std"))
+      stddev_pop(col(x)).as(s"${x}_std"))
       .withColumn("id", monotonically_increasing_id))
       .reduce(_.join(_, "id")).take(1).head
     // scalastyle:off println

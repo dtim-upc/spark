@@ -50,7 +50,7 @@ import org.apache.spark.sql.execution.arrow.{ArrowBatchStreamWriter, ArrowConver
 import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.python.EvaluatePython
-import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
+import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature, StatMetaFeature2}
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.SchemaUtils
@@ -2542,16 +2542,17 @@ class Dataset[T] private[sql](
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
 
-  lazy val metaFeatures: (DataFrame, DataFrame, DataFrame)
+  lazy val metaFeatures: (DataFrame, DataFrame)
     = StatMetaFeature.computeMetaFeature(this)
   // Later should change to DataFrame
+
+  lazy val metaFeatures2: (DataFrame, DataFrame) = StatMetaFeature2.computeMetaFeature(this)
 
 
   def computeMetaFeatures: Dataset[T] = {
     this.metaFeatures
     this.metaFeatures._1.show
     this.metaFeatures._2.show
-    this.metaFeatures._3.show
     this
   }
 

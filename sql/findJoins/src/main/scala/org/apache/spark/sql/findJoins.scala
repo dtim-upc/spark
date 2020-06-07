@@ -19,6 +19,7 @@ package org.apache.spark.sql
 
 
 import java.io.File
+import java.text.Normalizer
 
 import scala.collection.mutable.Map
 import scala.collection.parallel.ParSeq
@@ -27,9 +28,12 @@ import scala.reflect.io.Directory
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel}
-import org.apache.spark.sql.functions.{abs, col, desc, input_file_name, lit, udf}
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.stat.StatMetaFeature.{getMetaFeatures, normalizeDF}
+import org.apache.spark.sql.execution.stat.metafeatures.MetaFeature
+import org.apache.spark.sql.execution.stat.metafeatures.MetaFeaturesConf._
+import org.apache.spark.sql.functions.{abs, col, desc, input_file_name, lit, lower, trim, udf}
 import org.apache.spark.sql.types.{NumericType, StringType}
-import org.apache.spark.sql.utils.FindJoinUtils.{getColumnsNamesMetaFeatures, normalizeDF}
 import org.apache.spark.sql.utils.Unzip
 
 object findJoins extends  Logging {
@@ -99,23 +103,30 @@ object findJoins extends  Logging {
   def isCached(df: DataFrame): Boolean = df.sparkSession.sharedState.cacheManager
     .lookupCachedData(df.queryExecution.logical).isDefined
 
-  def computeDistances(dfSource: DataFrame, dfCandidates: Seq[DataFrame]): (Dataset[_],
-    Dataset[_], Dataset[_], Dataset[_]) = {
-    var (datasetMetaFeatures, numericMetaFeatures, nominalMetaFeatures) = dfSource.metaFeatures
+  def computeDistances(dfSource: DataFrame, dfCandidates: Seq[DataFrame], norm: Boolean = true)
+    : (Dataset[_], Dataset[_], Dataset[_], Dataset[_]) = {
+    var (numericMetaFeatures, nominalMetaFeatures) = dfSource.metaFeatures
 
     val fileName = dfSource.inputFiles(0).split("/").last
 
     // compute metaFeatures for all datasets and merge them in two dataframes: nominal and numeric
     for (i <- 0 to dfCandidates.size-1) {
-      var (mftmp, numericMetaFeaturesTmp, nominalMetaFeaturesTmp) = dfCandidates(i).metaFeatures
-      nominalMetaFeatures = nominalMetaFeatures.union(nominalMetaFeaturesTmp)
-      numericMetaFeatures = numericMetaFeatures.union(numericMetaFeaturesTmp)
+      var (numericMetaFeaturesTmp, nominalMetaFeaturesTmp) = dfCandidates(i).metaFeatures
+      if (!numericMetaFeaturesTmp.head(1).isEmpty) {
+        numericMetaFeatures = numericMetaFeatures.union(numericMetaFeaturesTmp)
+      }
+      if (!nominalMetaFeaturesTmp.head(1).isEmpty) {
+        nominalMetaFeatures = nominalMetaFeatures.union(nominalMetaFeaturesTmp)
+      }
     }
 
-    // normalization using z-score
-    val nomZscore = normalizeDF(nominalMetaFeatures, "nominal")
-    val numZscore = normalizeDF(numericMetaFeatures, "numeric")
 
+    nominalMetaFeatures = nominalMetaFeatures.filter(col(emptyMF.name) === 0)
+    numericMetaFeatures = numericMetaFeatures.filter(col(emptyMF.name) === 0)
+
+      // normalization using z-score
+    val nomZscore = if (norm) normalizeDF(nominalMetaFeatures, "nominal") else nominalMetaFeatures
+    val numZscore = if (norm) normalizeDF(numericMetaFeatures, "numeric") else numericMetaFeatures
 
     val attributesNominal = dfSource.schema.filter(
       a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
@@ -123,9 +134,9 @@ object findJoins extends  Logging {
       a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
 
     val matchingNom = createPairs(attributesNominal,
-      getColumnsNamesMetaFeatures("nominal"), nomZscore, fileName)
+      getMetaFeatures("nominal"), nomZscore, fileName)
     val matchingNum = createPairs(attributesNumeric,
-      getColumnsNamesMetaFeatures("numeric"), numZscore, fileName)
+      getMetaFeatures("numeric"), numZscore, fileName)
 
 //    val matchingNom1 = matchingNom.na.fill(0, matchingNom.logicalPlan.output.map(_.name))
 //    val matchingNum1 = matchingNum.na.fill(0, matchingNum.logicalPlan.output.map(_.name) )
@@ -134,7 +145,7 @@ object findJoins extends  Logging {
   }
 
 
-  def createPairs(attributes: Seq[String], metaFeaturesNames: Seq[String], zScoreDF: Dataset[_],
+  def createPairs(attributes: Seq[String], metaFeatureNames: Seq[MetaFeature], zScoreDF: Dataset[_],
                   fileName: String): Dataset[_] = {
 
     val columns = zScoreDF.schema.map(_.name)
@@ -148,39 +159,127 @@ object findJoins extends  Logging {
     // forcing cache of the distances
     var attributesPairs = zScoreDF.sparkSession.createDataFrame(tmp.rdd, tmp.schema).cache()
 
-    for (metafeature <- metaFeaturesNames) {
-      attributesPairs = attributesPairs.withColumn(
-        metafeature, abs(col(metafeature) - col(s"${metafeature}_2")))
+    for (metafeature <- metaFeatureNames.filter(_.normalize)) {
+      metafeature.normalizeType match {
+        case 3 =>
+          attributesPairs = attributesPairs.withColumn(metafeature.name,
+            containmentCleanUDF(col(metafeature.name), col(s"${metafeature.name}_2")) )
+        case 2 =>
+          attributesPairs = attributesPairs.withColumn(
+            metafeature.name, containmentUDF(col(metafeature.name), col(s"${metafeature.name}_2")) )
+        case 1 => // edit distance
+          attributesPairs = attributesPairs.withColumn(metafeature.name,
+            editDist(lower(trim(col(metafeature.name))),
+              lower(trim(col(s"${metafeature.name}_2")))))
+        case _ => // 0 y 4
+          attributesPairs = attributesPairs.withColumn(
+            metafeature.name, abs(col(metafeature.name) - col(s"${metafeature.name}_2")))
+      }
+//      attributesPairs = attributesPairs.withColumn(
+//        metafeature.name, abs(col(metafeature.name) - col(s"${metafeature.name}_2")))
     }
     // compute the distance name from the two attributes pair
     attributesPairs = attributesPairs.withColumn(
-      "name_dist", editDist(col("att_name"), col("att_name_2")))
+      "name_dist", editDist(lower(trim(col("att_name"))), lower(trim(col("att_name_2"))))
+    )
 
     // remove the meta-features columns from the second attribute pair
-    attributesPairs.drop(metaFeaturesNames.map(x => s"${x}_2"): _*)
+    attributesPairs.drop(metaFeatureNames.filter(_.normalize).map(x => s"${x.name}_2"): _*)
   }
 
   lazy val editDist = udf(levenshtein(_: String, _: String): Double)
 
-  def levenshtein(s1: String, s2: String): Double = {
-    val memorizedCosts = Map[(Int, Int), Int]()
+//  def levenshtein(s1: String, s2: String): Double = {
+//    if (s1 == null || s1 == "") {
+//      1
+//    } else if (s2 == null || s2 == "") {
+//      1
+//    } else {
+//      val memorizedCosts = Map[(Int, Int), Int]()
+//
+//      def lev: ((Int, Int)) => Int = {
+//        case (k1, k2) =>
+//          memorizedCosts.getOrElseUpdate((k1, k2), (k1, k2) match {
+//            case (i, 0) => i
+//            case (0, j) => j
+//            case (i, j) =>
+//              ParSeq(1 + lev((i - 1, j)),
+//                1 + lev((i, j - 1)),
+//                lev((i - 1, j - 1))
+//                  + (if (s1(i - 1) != s2(j - 1)) 1 else 0)).min
+//          })
+//      }
+//
+//      val leve = lev((s1.length, s2.length))
+//      leve/max(s1.length, s2.length).toDouble
+//    }
+//  }
 
-    def lev: ((Int, Int)) => Int = {
-      case (k1, k2) =>
-        memorizedCosts.getOrElseUpdate((k1, k2), (k1, k2) match {
-          case (i, 0) => i
-          case (0, j) => j
-          case (i, j) =>
-            ParSeq(1 + lev((i - 1, j)),
-              1 + lev((i, j - 1)),
-              lev((i - 1, j - 1))
-                + (if (s1(i - 1) != s2(j - 1)) 1 else 0)).min
-        })
+  def levenshtein(str1: String, str2: String): Double = {
+    if (str1 == null || str1 == "") {
+      1
+    } else if (str2 == null || str2 == "") {
+      1
+    } else {
+
+      val lenStr1 = str1.length
+      val lenStr2 = str2.length
+
+      val d: Array[Array[Int]] = Array.ofDim(lenStr1 + 1, lenStr2 + 1)
+
+      for (i <- 0 to lenStr1) d(i)(0) = i
+      for (j <- 0 to lenStr2) d(0)(j) = j
+
+      for (i <- 1 to lenStr1; j <- 1 to lenStr2) {
+        val cost = if (str1(i - 1) == str2(j - 1)) 0 else 1
+
+        d(i)(j) = mini(
+          d(i-1)(j  ) + 1,     // deletion
+          d(i  )(j-1) + 1,     // insertion
+          d(i-1)(j-1) + cost   // substitution
+        )
+      }
+
+      val lev = d(lenStr1)(lenStr2)
+
+      lev.toDouble / scala.math.max(lenStr1, lenStr2).toDouble
     }
-
-    val leve = lev((s1.length, s2.length))
-    leve/max(s1.length, s2.length).toDouble
   }
+
+  def mini(nums: Int*): Int = nums.min
+
+
+  val containmentUDF = udf(containment(_: Seq[String], _: Seq[String]): Double)
+  def containment(array1: Seq[String], array2: Seq[String]): Double = {
+
+    if (array1.isEmpty || array2.isEmpty) {
+      0.0
+    } else {
+      val inter = array1.intersect(array2).size.toDouble
+      val containment1 = inter/array1.size.toDouble
+      val containment2 = inter/array2.size.toDouble
+
+      if (containment1 > containment2) containment1 else containment2
+    }
+  }
+
+  val containmentCleanUDF = udf(containment(_: Seq[String], _: Seq[String]): Double)
+  def containmentClean(array1: Seq[String], array2: Seq[String]): Double = {
+
+
+    val a1 = array1.map(x => Normalizer
+      .normalize(x, Normalizer.Form.NFD)
+      .replaceAll("[^a-zA-Z\\d]", ""))
+
+    val a2 = array1.map(x => Normalizer
+      .normalize(x, Normalizer.Form.NFD)
+      .replaceAll("[^a-zA-Z\\d]", ""))
+
+    containment(a1, a2)
+  }
+
+
+
 
 
 }

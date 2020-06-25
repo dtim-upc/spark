@@ -474,6 +474,7 @@ object StatMetaFeature extends Logging{
 
     val quartiles = meta.filter(_.useSoundexCnt == false)
       .map(m => m.key match {
+          // TODO: delete first, second and third since are for numeric
       case FirstQuartile.key => 0.25
       case SecondQuartile.key => 0.5
       case ThirdQuartile.key => 0.75
@@ -487,7 +488,7 @@ object StatMetaFeature extends Logging{
     })
 
     cols.map(colname => {
-      val q = getFrequenciesCount(ds, colname.name).stat
+      val q = getFrequenciesCount(ds, colname.name, true).stat
         .approxQuantile(colname.name, quartiles.toArray, 0.0)
 
       if(q.isEmpty) {
@@ -531,7 +532,7 @@ object StatMetaFeature extends Logging{
     var df = ds.select(trim(col(nameCol)).as(renameCol)).na.drop.groupBy(renameCol)
       .agg( expr(s"count(*)").as(nameCol))
 
-    if (sdx) {
+    if (sdx) { // soundex
       df = ds.select(soundex(trim(col(nameCol))).as(renameCol)).na.drop.groupBy(renameCol)
         .agg( expr(s"count(*)").as(nameCol))
     }
@@ -539,7 +540,7 @@ object StatMetaFeature extends Logging{
 //    var df = ds.select(nameCol).na.drop.groupBy(nameCol).agg( expr("count(*) as cnt"))
 //      .withColumn(nameCol, col("cnt")).drop("cnt")
 
-    if(p) {
+    if(p) { // percentage
       df = df.select(col(nameCol).divide(Nrows).as(nameCol))
     }
     df
@@ -587,6 +588,8 @@ object StatMetaFeature extends Logging{
 
       case Uniqueness.key =>
         df = df.withColumn(Uniqueness.name, col(Cardinality.name)/ Nrows)
+      case BestContainment.key =>
+        df = df.withColumn(BestContainment.name, col(Cardinality.name))
       case Constancy.key =>
         df = df.withColumn(Constancy.name, col(FrequencyMax.name)/ Nrows)
 

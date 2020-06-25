@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.stat.StatMetaFeature.{getMetaFeatures, nor
 import org.apache.spark.sql.execution.stat.metafeatures.MetaFeature
 import org.apache.spark.sql.execution.stat.metafeatures.MetaFeaturesConf._
 import org.apache.spark.sql.functions.{abs, col, desc, input_file_name, lit, lower, trim, udf}
-import org.apache.spark.sql.types.{NumericType, StringType}
+import org.apache.spark.sql.types.{NumericType, StringType, DoubleType}
 import org.apache.spark.sql.utils.Unzip
 
 object findJoins extends  Logging {
@@ -81,9 +81,9 @@ object findJoins extends  Logging {
 
     val tmp = computeDistances(dfSource, dfCandidates)
     val nomZscore = tmp._1
-    val numZscore = tmp._2
-    val matchingNom = tmp._3
-    val matchingNum = tmp._4
+    val numZscore = tmp._1
+    val matchingNom = tmp._2
+    val matchingNum = tmp._2
 
     val pathM = Unzip.unZipIt(getClass.getResourceAsStream("/model.zip") )
                                      
@@ -103,8 +103,8 @@ object findJoins extends  Logging {
   def isCached(df: DataFrame): Boolean = df.sparkSession.sharedState.cacheManager
     .lookupCachedData(df.queryExecution.logical).isDefined
 
-  def computeDistances(dfSource: DataFrame, dfCandidates: Seq[DataFrame], norm: Boolean = true)
-    : (Dataset[_], Dataset[_], Dataset[_], Dataset[_]) = {
+  def computeDistances(dfSource: DataFrame, dfCandidates: Seq[DataFrame], norm: Boolean = true,
+                       direction: Boolean = false): (Dataset[_], Dataset[_]) = {
     var (numericMetaFeatures, nominalMetaFeatures) = dfSource.metaFeatures
 
     val fileName = dfSource.inputFiles(0).split("/").last
@@ -112,9 +112,9 @@ object findJoins extends  Logging {
     // compute metaFeatures for all datasets and merge them in two dataframes: nominal and numeric
     for (i <- 0 to dfCandidates.size-1) {
       var (numericMetaFeaturesTmp, nominalMetaFeaturesTmp) = dfCandidates(i).metaFeatures
-      if (!numericMetaFeaturesTmp.head(1).isEmpty) {
-        numericMetaFeatures = numericMetaFeatures.union(numericMetaFeaturesTmp)
-      }
+//      if (!numericMetaFeaturesTmp.head(1).isEmpty) {
+//        numericMetaFeatures = numericMetaFeatures.union(numericMetaFeaturesTmp)
+//      }
       if (!nominalMetaFeaturesTmp.head(1).isEmpty) {
         nominalMetaFeatures = nominalMetaFeatures.union(nominalMetaFeaturesTmp)
       }
@@ -122,31 +122,28 @@ object findJoins extends  Logging {
 
 
     nominalMetaFeatures = nominalMetaFeatures.filter(col(emptyMF.name) === 0)
-    numericMetaFeatures = numericMetaFeatures.filter(col(emptyMF.name) === 0)
+//    numericMetaFeatures = numericMetaFeatures.filter(col(emptyMF.name) === 0)
 
       // normalization using z-score
     val nomZscore = if (norm) normalizeDF(nominalMetaFeatures, "nominal") else nominalMetaFeatures
-    val numZscore = if (norm) normalizeDF(numericMetaFeatures, "numeric") else numericMetaFeatures
+//    val numZscore = if (norm) normalizeDF(numericMetaFeatures, "numeric") else numericMetaFeatures
 
     val attributesNominal = dfSource.schema.filter(
       a => a.dataType.isInstanceOf[StringType]).map(a => a.name)
-    val attributesNumeric = dfSource.schema.filter(
-      a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
+//    val attributesNumeric = dfSource.schema.filter(
+//      a => a.dataType.isInstanceOf[NumericType]).map(a => a.name)
 
     val matchingNom = createPairs(attributesNominal,
-      getMetaFeatures("nominal"), nomZscore, fileName)
-    val matchingNum = createPairs(attributesNumeric,
-      getMetaFeatures("numeric"), numZscore, fileName)
+      getMetaFeatures("nominal"), nomZscore, fileName, direction)
+//    val matchingNum = createPairs(attributesNumeric,
+//      getMetaFeatures("numeric"), numZscore, fileName)
 
-//    val matchingNom1 = matchingNom.na.fill(0, matchingNom.logicalPlan.output.map(_.name))
-//    val matchingNum1 = matchingNum.na.fill(0, matchingNum.logicalPlan.output.map(_.name) )
-
-    (nomZscore, numZscore, matchingNom, matchingNum)
+    (nomZscore, matchingNom)
   }
 
 
   def createPairs(attributes: Seq[String], metaFeatureNames: Seq[MetaFeature], zScoreDF: Dataset[_],
-                  fileName: String): Dataset[_] = {
+                  fileName: String, direction: Boolean): Dataset[_] = {
 
     val columns = zScoreDF.schema.map(_.name)
 
@@ -171,9 +168,23 @@ object findJoins extends  Logging {
           attributesPairs = attributesPairs.withColumn(metafeature.name,
             editDist(lower(trim(col(metafeature.name))),
               lower(trim(col(s"${metafeature.name}_2")))))
+        case 5 =>
+          // BestContainment
+            attributesPairs = attributesPairs.withColumn(
+              metafeature.name,
+              possContainment(col(metafeature.name).cast(DoubleType),
+                col(s"${metafeature.name}_2").cast(DoubleType))
+            )
+
+
         case _ => // 0 y 4
-          attributesPairs = attributesPairs.withColumn(
-            metafeature.name, abs(col(metafeature.name) - col(s"${metafeature.name}_2")))
+          if (!direction) {
+            attributesPairs = attributesPairs.withColumn(
+              metafeature.name, abs(col(metafeature.name) - col(s"${metafeature.name}_2")))
+          } else {
+            attributesPairs = attributesPairs.withColumn(
+              metafeature.name, col(metafeature.name) - col(s"${metafeature.name}_2"))
+          }
       }
 //      attributesPairs = attributesPairs.withColumn(
 //        metafeature.name, abs(col(metafeature.name) - col(s"${metafeature.name}_2")))
@@ -187,6 +198,14 @@ object findJoins extends  Logging {
     attributesPairs.drop(metaFeatureNames.filter(_.normalize).map(x => s"${x.name}_2"): _*)
   }
 
+
+  def possibleContainment(num1: Double, num2: Double): Double = {
+    val minN = scala.math.min(num1, num2)
+
+    minN/num1
+  }
+
+  lazy val possContainment = udf(possibleContainment(_: Double, _: Double): Double)
   lazy val editDist = udf(levenshtein(_: String, _: String): Double)
 
 //  def levenshtein(s1: String, s2: String): Double = {

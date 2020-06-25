@@ -30,6 +30,8 @@ object MetaFeaturesConf {
   // done-write
   val Cardinality = MetaFeature("distinct_values_cnt").name("cardinality").dataType("all")
     .doc("Number of distinct values that appear within the column")
+  val BestContainment = MetaFeature("bestContainment").name("bestContainment").dataType("all")
+    .doc("bestContainment that can be achieved").dependant(true).normalize(true).normalizeType(5)
   // done-write
   val Uniqueness = MetaFeature("distinct_values_pct").name("uniqueness").dataType("all")
     .doc("Number of distinct values divided by the number of rows").dependant(true)
@@ -129,36 +131,43 @@ object MetaFeaturesConf {
   // done
   val Frequency1Q = MetaFeature("frequency_1q").name("frequency_2qo").dataType("nominal")
     .doc("Lower quartile of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val Frequency2Q = MetaFeature("val_pct_median").name("frequency_4qo").dataType("nominal")
     .doc("The median of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val Frequency3Q = MetaFeature("frequency_3q").name("frequency_6qo").dataType("nominal")
     .doc("Upper quartile of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val FrequencyIQR = MetaFeature("frequency_IQR").name("frequency_IQR").dataType("nominal")
     .doc("Interquartile range of the frequency distribution count").dependant(true)
-//    .useFreqCnt(true).isQuartile(true)
+
 
 
   // done
   val Frequency1Qo = MetaFeature("frequency_1qo").name("frequency_1qo").dataType("nominal")
     .doc("First octile of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val Frequency3Qo = MetaFeature("frequency_3qo").name("frequency_3qo").dataType("nominal")
     .doc("Third octile of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val Frequency5Qo = MetaFeature("frequency_5qo").name("frequency_5qo").dataType("nominal")
     .doc("fifth octile of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val Frequency7Qo = MetaFeature("frequency_7qo").name("frequency_7qo").dataType("nominal")
     .doc("Seventh octile of the frequency distribution count").useFreqCnt(true).isQuartile(true)
+    .normalizeType(4)
 
   // done
   val Entropy = MetaFeature("entropy").name("entropy").dataType("nominal")
@@ -305,7 +314,7 @@ object MetaFeaturesConf {
     FrequencyIQR, AvgWords, MinWords, MaxWords, SdWords, TypeInformation, numberWords,
     CardPhone, cardEmail, cardIP, cardURL, cardUsername, cardGeneral, cardOthers, cardSpaces,
     CardinalityAlphabetic, CardinalityAlphanumeric, CardinalityNumeric, cardPhrases,
-    CardinalityNonAlphanumeric, CardinalityDateTime, isBinary, Freq_wordClean)
+    CardinalityNonAlphanumeric, CardinalityDateTime, isBinary, Freq_wordClean, BestContainment)
 //    SoundexAVG, SoundexMin, SoundexMax, SoundexSD, Soundex1Q, Soundex2Q, Soundex3Q, SoundexIQR)
 
   val NominalDep = List(Uniqueness, RangeMF, CoVarMF, FrequencyIQR, PctMinMF,

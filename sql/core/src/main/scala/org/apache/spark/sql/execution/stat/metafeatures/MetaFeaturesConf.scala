@@ -32,6 +32,7 @@ object MetaFeaturesConf {
     .doc("Number of distinct values that appear within the column")
   val BestContainment = MetaFeature("bestContainment").name("bestContainment").dataType("all")
     .doc("bestContainment that can be achieved").dependant(true).normalize(true).normalizeType(5)
+
   // done-write
   val Uniqueness = MetaFeature("distinct_values_pct").name("uniqueness").dataType("all")
     .doc("Number of distinct values divided by the number of rows").dependant(true)

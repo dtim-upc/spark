@@ -35,14 +35,14 @@ object StatMetaFeature extends Logging{
 
   var Nrows: Double = 1.0
 
-  def computeMetaFeature(ds: Dataset[_]): (DataFrame, DataFrame) = {
+  def computeMetaFeature(ds: Dataset[_]): DataFrame = {
 
 
     val outputDs = ds.logicalPlan.output
 
     // TODO: Check what types are UDTs, arrays, structs, and maps to handle them
     val nominalA = outputDs.filter(a => a.dataType.isInstanceOf[StringType])
-    val numericA = outputDs.filter(a => a.dataType.isInstanceOf[NumericType])
+//    val numericA = outputDs.filter(a => a.dataType.isInstanceOf[NumericType])
 
     Nrows = ds.count.toDouble
     val numberAttributes = outputDs.size.toDouble
@@ -52,39 +52,39 @@ object StatMetaFeature extends Logging{
     val path = ds.inputFiles(0)
 
     val nomPath = pathMF(path, filename, "nominal")
-    val numPath = pathMF(path, filename, "numeric")
+//    val numPath = pathMF(path, filename, "numeric")
 
     try {
       val nominalAtt = ds.sparkSession.read.load(nomPath)
-      val numericAtt = ds.sparkSession.read.load(numPath)
+//      val numericAtt = ds.sparkSession.read.load(numPath)
       // scalastyle:off println
-      println("READ META")
+//      println("READ META")
       // scalastyle:on println
-      ( numericAtt, nominalAtt)
+      nominalAtt
     } catch {
       case e:
         // scalastyle:off println
-        AnalysisException => println(s"Couldn't find that file: $filename")
+        AnalysisException => println(s"")
         // scalastyle:on println
         // compute content meta-features
 
-        if( numericA.size > 0 && false) { // For now we disable it
-
-          val selectMetaFeatures = Numeric.filter(_.dependant != true)
-          val selectMetaFeaturesDep = Numeric.filter(_.dependant == true)
-          val computedMetaFeatures = compute(selectMetaFeatures, numericA, ds)
-
-
-          val numericDS = Dataset.ofRows(ds.sparkSession, createMFRel(
-            selectMetaFeatures, numericA, filename, computedMetaFeatures))
-
-          val numericAtt = computeDependants(selectMetaFeaturesDep, numericDS)
-          saveMF(numPath, numericAtt)
-        } else {
-          val emptyDF = Dataset.ofRows(ds.sparkSession, createMFRel(
-            Numeric, Seq(), filename, InternalRow.fromSeq(Seq())))
-          saveMF(numPath, emptyDF)
-        }
+//        if( numericA.size > 0 && false) { // For now we disable it
+//
+//          val selectMetaFeatures = Numeric.filter(_.dependant != true)
+//          val selectMetaFeaturesDep = Numeric.filter(_.dependant == true)
+//          val computedMetaFeatures = compute(selectMetaFeatures, numericA, ds)
+//
+//
+//          val numericDS = Dataset.ofRows(ds.sparkSession, createMFRel(
+//            selectMetaFeatures, numericA, filename, computedMetaFeatures))
+//
+//          val numericAtt = computeDependants(selectMetaFeaturesDep, numericDS)
+//          saveMF(numPath, numericAtt)
+//        } else {
+//          val emptyDF = Dataset.ofRows(ds.sparkSession, createMFRel(
+//            Numeric, Seq(), filename, InternalRow.fromSeq(Seq())))
+//          saveMF(numPath, emptyDF)
+//        }
 
 
 
@@ -167,13 +167,13 @@ object StatMetaFeature extends Logging{
             Nominal, Seq(), filename, InternalRow.fromSeq(Seq())))
           saveMF(nomPath, emptyDF)
         }
-        (ds.sparkSession.read.load(numPath), ds.sparkSession.read.load(nomPath))
+      ds.sparkSession.read.load(nomPath)
       case _:
         // TODO: handle it@
         // scalastyle:off println
         Throwable => println("Got some other kind of Throwable exception")
         // scalastyle:on println
-        (createDF(ds, Seq(("1"->1))), createDF(ds, Seq(("1"->1))))
+      createDF(ds, Seq(("1"->1)))
     }
 
   }

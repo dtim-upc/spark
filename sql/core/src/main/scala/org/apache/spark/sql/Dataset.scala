@@ -2542,18 +2542,29 @@ class Dataset[T] private[sql](
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
 
-  lazy val metaFeatures: (DataFrame, DataFrame)
-    = StatMetaFeature.computeMetaFeature(this)
+  lazy val metaFeatures: DataFrame = StatMetaFeature.computeMetaFeature(this)
   // Later should change to DataFrame
 
-  lazy val metaFeatures2: (DataFrame, DataFrame) = StatMetaFeature2.computeMetaFeature(this)
+//  lazy val metaFeatures2: (DataFrame, DataFrame) = StatMetaFeature2.computeMetaFeature(this)
 
+   def attributeProfiling: Dataset[T] = {
+     this.metaFeatures
+     this
+   }
 
-  def computeMetaFeatures: Dataset[T] = {
+  def getAttributeProfiling: DataFrame = {
     this.metaFeatures
-    this.metaFeatures._1.show
-    this.metaFeatures._2.show
-    this
+      .drop(Seq("freqWordCleanContainment", "binary", "isEmpty", "bestContainment"): _*)
+      .withColumnRenamed("freqWordContainment", "FrequentWords")
+      .withColumnRenamed("ds_name", "Dataset_name")
+      .withColumnRenamed("att_name", "Attribute_name")
+      .withColumnRenamed("freqWordSoundexContainment", "FrequentWordsInSoundex")
+      .withColumnRenamed("wordsCntMax", "MaxNumberWords")
+      .withColumnRenamed("wordsCntMin", "MinNumberWords")
+      .withColumnRenamed("wordsCntAvg", "AvgNumberWords")
+      .withColumnRenamed("wordsCntSd", "SdNumberWords")
+
+
   }
 
 //  def findJoins(threshold: Double, dfs: DataFrame*): Seq[DataFrame] = {

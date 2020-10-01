@@ -24,9 +24,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
-
 import org.apache.commons.lang3.StringUtils
-
 import org.apache.spark.{SparkException, TaskContext}
 import org.apache.spark.annotation.{DeveloperApi, Stable, Unstable}
 import org.apache.spark.api.java.JavaRDD
@@ -41,7 +39,7 @@ import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.encoders._
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.json.{JacksonGenerator, JSONOptions}
+import org.apache.spark.sql.catalyst.json.{JSONOptions, JacksonGenerator}
 import org.apache.spark.sql.catalyst.optimizer.CombineUnions
 import org.apache.spark.sql.catalyst.parser.{ParseException, ParserUtils}
 import org.apache.spark.sql.catalyst.plans._
@@ -56,7 +54,7 @@ import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2ScanRelation, FileTable}
 import org.apache.spark.sql.execution.python.EvaluatePython
-import org.apache.spark.sql.execution.stat.StatFunctions
+import org.apache.spark.sql.execution.stat.{StatFunctions, StatMetaFeature}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types._
@@ -2684,6 +2682,35 @@ class Dataset[T] private[sql](
    */
   @scala.annotation.varargs
   def summary(statistics: String*): DataFrame = StatFunctions.summary(this, statistics.toSeq)
+
+
+  lazy val metaFeatures: DataFrame = StatMetaFeature.computeMetaFeature(this)
+  // Later should change to DataFrame
+
+  //  lazy val metaFeatures2: (DataFrame, DataFrame) = StatMetaFeature2.computeMetaFeature(this)
+
+  def attributeProfile(flag: Boolean = false): Dataset[T] = {
+    StatMetaFeature.computeMetaFeature(this, flag)
+    this
+//    this.metaFeatures
+//    this
+  }
+
+  def getAttributeProfile: DataFrame = {
+    this.metaFeatures
+      .drop(Seq("freqWordCleanContainment", "binary", "isEmpty", "bestContainment"): _*)
+      .withColumnRenamed("freqWordContainment", "FrequentWords")
+      .withColumnRenamed("ds_name", "Dataset_name")
+      .withColumnRenamed("att_name", "Attribute_name")
+      .withColumnRenamed("freqWordSoundexContainment", "FrequentWordsInSoundex")
+      .withColumnRenamed("wordsCntMax", "MaxNumberWords")
+      .withColumnRenamed("wordsCntMin", "MinNumberWords")
+      .withColumnRenamed("wordsCntAvg", "AvgNumberWords")
+      .withColumnRenamed("wordsCntSd", "SdNumberWords")
+
+
+  }
+
 
   /**
    * Returns the first `n` rows.

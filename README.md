@@ -1,108 +1,72 @@
-# Apache Spark
+# NextiaJD   
 
-Spark is a unified analytics engine for large-scale data processing. It provides
-high-level APIs in Scala, Java, Python, and R, and an optimized engine that
-supports general computation graphs for data analysis. It also supports a
-rich set of higher-level tools including Spark SQL for SQL and DataFrames,
-MLlib for machine learning, GraphX for graph processing,
-and Structured Streaming for stream processing.
+**NextiaJD** is a Scalable Data Discovery solution using profiles. We aim to  discover automatically attributes pairs in a massive collection of heterogeneous datasets (i.e., data lakes) that can be crossed.   
 
-<https://spark.apache.org/>
+To learn more about it, visit our [web page]()
+## Key features 
 
-[![Jenkins Build](https://amplab.cs.berkeley.edu/jenkins/job/spark-master-test-sbt-hadoop-2.7-hive-2.3/badge/icon)](https://amplab.cs.berkeley.edu/jenkins/job/spark-master-test-sbt-hadoop-2.7-hive-2.3)
-[![AppVeyor Build](https://img.shields.io/appveyor/ci/ApacheSoftwareFoundation/spark/master.svg?style=plastic&logo=appveyor)](https://ci.appveyor.com/project/ApacheSoftwareFoundation/spark)
-[![PySpark Coverage](https://img.shields.io/badge/dynamic/xml.svg?label=pyspark%20coverage&url=https%3A%2F%2Fspark-test.github.io%2Fpyspark-coverage-site&query=%2Fhtml%2Fbody%2Fdiv%5B1%5D%2Fdiv%2Fh1%2Fspan&colorB=brightgreen&style=plastic)](https://spark-test.github.io/pyspark-coverage-site)
+* Attribute profiling built-in Spark
+* A fully distributed end-to-end framework for joinable attributes discovery.
+* Easy data discovery for everyone
+  
+## Quick start guide  
+  
+### [Guide video]()
+
+### Install NextiaJD
+
+To install NextiaJD, we need to include some libraries to our Spark installation. There is two ways to get the compile jars.
+
+* Directly download the final compiled jars in this [repository](https://mydisk.cs.upc.edu/s/mXMnNo4ARAPxLg3?path=%2Frelease)
+* Build the source code from this repository as show below:
+	*  Clone this project
+	```
+	$ git clone https://github.com/
+	```
+	* Build through Maven:
+	```
+	./build/mvn clean package -pl :spark-catalyst_2.12,:spark-sql_2.12,:spark-nextiajd_2.12 -DskipTests 
+	```
+	This will build the spark catalyst, spark sql and spark nextiajd. Alternatively, we can build the whole Spark project as specified [here](https://spark.apache.org/docs/latest/building-spark.html). If the build succeeds, you can find the jars compile under the target folder for each module. Those jars should be copied and replaced to the jars folder from Spark.
+	 
+## Online Demo
+ You can find a demo for finding joinable attributes using NextiaJD in the [project web page](https://www.essi.upc.edu/dtim/).    
+  
+## Usage  
+
+NextiaJD only supports Scala and Java programming. It is required those versions will be compatible with the version of Spark.  
+
+### Attribute profiling
+
+To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed it is saved in the dataset directory. This allows to reuse the profile for future discoveries.
+
+```
+val dataset = spark.read.csv(...)
+dataset.attributeProfile() 
+dataset.getAttributeProfile() # returns a dataframe with the profile information
+```
+
+### Join Discovery
+
+A Join Discovery will return the attributes pairs ordered by their relevance as indicator of the quality of the resulting join. To get more information visit our [web page]()
 
 
-## Online Documentation
+NextiaJD defines a totally-ordered set of quality classes:  
+  
+* High: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 4.  
+* Good: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 4.   
+* Moderate: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 4.   
+* Poor: attributes pair with a containment similarity of 0.1  
+* None: otherwise  
+  
+In case you want to start a dataset profile you can use the method. This option is recommended once a dataset is ingested into the repository  
+uilding and maintaining  
+  
+## Benchmarks  
 
-You can find the latest Spark documentation, including a programming
-guide, on the [project web page](https://spark.apache.org/documentation.html).
-This README file only contains basic setup instructions.
+NextiaJD were compared with LSH Ensemble and FlexMatcher. The code for generating the benchmark can be found [at]() . Each approach were tested with real datasets. We create the following testbeds: 
 
-## Building Spark
-
-Spark is built using [Apache Maven](https://maven.apache.org/).
-To build Spark and its example programs, run:
-
-    ./build/mvn -DskipTests clean package
-
-(You do not need to do this if you downloaded a pre-built package.)
-
-More detailed documentation is available from the project site, at
-["Building Spark"](https://spark.apache.org/docs/latest/building-spark.html).
-
-For general development tips, including info on developing Spark using an IDE, see ["Useful Developer Tools"](https://spark.apache.org/developer-tools.html).
-
-## Interactive Scala Shell
-
-The easiest way to start using Spark is through the Scala shell:
-
-    ./bin/spark-shell
-
-Try the following command, which should return 1,000,000,000:
-
-    scala> spark.range(1000 * 1000 * 1000).count()
-
-## Interactive Python Shell
-
-Alternatively, if you prefer Python, you can use the Python shell:
-
-    ./bin/pyspark
-
-And run the following command, which should also return 1,000,000,000:
-
-    >>> spark.range(1000 * 1000 * 1000).count()
-
-## Example Programs
-
-Spark also comes with several sample programs in the `examples` directory.
-To run one of them, use `./bin/run-example <class> [params]`. For example:
-
-    ./bin/run-example SparkPi
-
-will run the Pi example locally.
-
-You can set the MASTER environment variable when running examples to submit
-examples to a cluster. This can be a mesos:// or spark:// URL,
-"yarn" to run on YARN, and "local" to run
-locally with one thread, or "local[N]" to run locally with N threads. You
-can also use an abbreviated class name if the class is in the `examples`
-package. For instance:
-
-    MASTER=spark://host:7077 ./bin/run-example SparkPi
-
-Many of the example programs print usage help if no params are given.
-
-## Running Tests
-
-Testing first requires [building Spark](#building-spark). Once Spark is built, tests
-can be run using:
-
-    ./dev/run-tests
-
-Please see the guidance on how to
-[run tests for a module, or individual tests](https://spark.apache.org/developer-tools.html#individual-tests).
-
-There is also a Kubernetes integration test, see resource-managers/kubernetes/integration-tests/README.md
-
-## A Note About Hadoop Versions
-
-Spark uses the Hadoop core library to talk to HDFS and other Hadoop-supported
-storage systems. Because the protocols have changed in different versions of
-Hadoop, you must build Spark against the same version that your cluster runs.
-
-Please refer to the build documentation at
-["Specifying the Hadoop Version and Enabling YARN"](https://spark.apache.org/docs/latest/building-spark.html#specifying-the-hadoop-version-and-enabling-yarn)
-for detailed guidance on building for a particular distribution of Hadoop, including
-building for particular Hive and Hive Thriftserver distributions.
-
-## Configuration
-
-Please refer to the [Configuration Guide](https://spark.apache.org/docs/latest/configuration.html)
-in the online documentation for an overview on how to configure Spark.
-
-## Contributing
-
-Please review the [Contribution to Spark guide](https://spark.apache.org/contributing.html)
-for information on how to get started contributing to the project.
+* Testbed XS : datasets smaller than 1mb
+* Testbed S : datasets smaller than 100mb 
+* Tesbed M : datasets smaller than 1gb 
+* Testbed L : datasets bigger than 1gb 

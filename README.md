@@ -1,7 +1,7 @@
 
 
 <h1 align="center">
-  <a href="https://www.essi.upc.edu/dtim/"><img src="https://github.com/dtim-upc/spark/blob/nextiajd_v3.0.1/sql/nextiajd/img/logo.png?raw=true" alt="NextiaJD" height="200">
+  <a href="https://www.essi.upc.edu/dtim/"><img src="https://github.com/dtim-upc/spark/blob/nextiajd_v3.0.1/sql/nextiajd/img/logo.png?raw=true" alt="NextiaJD" width="300">
   </a>
 </h1>
 

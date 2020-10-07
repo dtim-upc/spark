@@ -1,4 +1,4 @@
-# FlexMatcher Benchmark
+# FlexMatcher comparison
 
 ## Installation
 
@@ -13,7 +13,7 @@ pip install -r requirements.txt
 
 ## Running 
 
-1. Run `main.py` to execute the benchmark
+1. Run `FlexMatcher_comparison.py` to execute the benchmark
 
 Required arguments 
 

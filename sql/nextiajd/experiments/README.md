@@ -1,4 +1,4 @@
-#Evaluation
+# Evaluation
 
 Here you can find the experiments done for evaluate NextiaJD. On the one hand, we quantify the ability of the model to discover high quality joins through several experiments, and on the other hand we compare its performance to state of the art competitors.
 
@@ -31,13 +31,21 @@ The code for each comparison can be found in the following links:
 * [FlexMatcher](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher)
 * [LSH Ensemble](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/benchmarks/LSH%20Ensemble)
 
+Each project will generated a file with the discovery result. To evaluate them, we can use the class `evaluate.scala` in this [project]()
+
+
 ## Scalability
 
 The most intensive task for our approach in terms of computational resources is the generation of attribute profiles from datasets. Hence, we performed a stress test of this component. 
 
-To this end, we generated a 10GB base CSV file with 5 columns. Next, we systematically extended them in batches of 10GBs, up to 60GBs. Regarding the evaluation with respect to the number of columns, we followed a similar strategy. From the 10GB base file, we systematically extended with 10 duplicate columns. The resulting files were stored in a Hadoop HDFS clus- ter, using the default block size and replication parameters. In order to simulate a realistic large-scale scenario, we also con-
-6 vertedeachoftheinputfilestoApacheParquet format
+To this end, we created a jar file for spark-submit. The jar can be found [here]().
+
+It contains 4 independent objects.
 
 
 ## Discovery of semantic non-syntactic relationships
+
+This experiment evaluates if nextiajd can find semantic attributes represented in different format. The code for this experiment can be foun [here](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/semanticNS)
+
+
 

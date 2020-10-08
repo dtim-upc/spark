@@ -29,7 +29,7 @@ The code for each comparison can be found in the following links:
 
 * [NextiaJD](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
 * [FlexMatcher](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher)
-* [LSH Ensemble](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/benchmarks/LSH%20Ensemble)
+* [LSH Ensemble](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble)
 
 Each project will generated a file with the discovery result. To evaluate them, we can use the class `evaluate.scala` in this [project]()
 

@@ -63,19 +63,29 @@ object NextiaJD {
     directory.deleteRecursively()
 
     if (showAll) {
-      discovery.orderBy(desc("quality"), desc("probability"))
+      discovery.orderBy(desc("prediction"), desc("probability"))
+        .select("query dataset", "query attribute", "candidate dataset", "candidate attribute",
+          "quality", "probability")
     } else if ( showPoor && showModerate ) {
       discovery.filter( col("quality").isin("Poor", "Moderate") )
-        .orderBy(desc("quality"), desc("probability"))
+        .orderBy(desc("prediction"), desc("probability"))
+        .select("query dataset", "query attribute", "candidate dataset", "candidate attribute",
+          "quality", "probability")
     } else if ( showPoor ) {
       discovery.filter( col("quality").isin("Poor") )
-        .orderBy(desc("quality"), desc("probability"))
+        .orderBy(desc("prediction"), desc("probability"))
+        .select("query dataset", "query attribute", "candidate dataset", "candidate attribute",
+          "quality", "probability")
     } else if (showModerate) {
       discovery.filter( col("quality").isin("Moderate") )
-        .orderBy(desc("quality"), desc("probability"))
+        .orderBy(desc("prediction"), desc("probability"))
+        .select("query dataset", "query attribute", "candidate dataset", "candidate attribute",
+          "quality", "probability")
     } else {
       discovery.filter( col("quality").isin( "High", "Good" ) )
-        .orderBy(desc("quality"), desc("probability"))
+        .orderBy(desc("prediction"), desc("probability"))
+        .select("query dataset", "query attribute", "candidate dataset", "candidate attribute",
+          "quality", "probability")
     }
 
   }
@@ -289,7 +299,7 @@ object NextiaJD {
       .select(col("ds_name").as("query dataset"),
         col("att_name").as("query attribute"),
         col("ds_name_2").as("candidate dataset"),
-        col("att_name_2").as("candidate attribute"),
+        col("att_name_2").as("candidate attribute"), col("prediction"),
         col("quality"), col("probability"))
 
 

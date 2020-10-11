@@ -1,4 +1,4 @@
-# FlexMatcher comparison
+# FlexMatcher discovery
 
 ## Installation
 

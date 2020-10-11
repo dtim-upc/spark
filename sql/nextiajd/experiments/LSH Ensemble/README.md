@@ -1,4 +1,4 @@
-# LSH Ensemble comparison
+# LSH Ensemble discovery
 
 ## Installation
 

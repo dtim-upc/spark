@@ -1,11 +1,10 @@
-# NextiaJD: predictive accuracy and comparison
+# NextiaJD experiments
 
-# About
 
 Here you can find the code for:
 
 *  Predictive accuracy: generates the discovery and time execution for the testbed
-*  Comparison: generates the confusion matrices and their metrics for the state-of-the-art
+*  Confusion matrix generator: generates the confusion matrices  and their metrics for the state-of-the-art
 *  Discovery of semantic non-sytactic relationships
 
 ## Installation
@@ -34,7 +33,7 @@ The results of the code are:
 *   Nextia_evaluation_testbed.csv: file containing the confusion matrix and its metrics
 *   time_testbed.txt: file containing the times from the execution: pre runtime and runtime
 
-## Comparison
+## Confusion matrix generator
 
 This code allows you to compare the results of NextiaJD, LSH Ensemble and FlexMatcher. The following parameters are needed:
 

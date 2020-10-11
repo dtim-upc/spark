@@ -24,7 +24,7 @@ The goal of the first experiment is to evaluate the prediction quality on genera
 
 ## Comparison with the state-of-the-art
 
-We compare our approach with the following state-of-the-art data discovery solutions, whose source code is openly available: [LSH Ensamble](https://github.com/ekzhu/datasketch) and [Flex Matcher](https://github.com/biggorilla-gh/flexmatcher). 
+We compare our approach with the following state-of-the-art data discovery solutions, whose source code is openly available: [LSH Ensemble](https://github.com/ekzhu/datasketch) and [FlexMatcher](https://github.com/biggorilla-gh/flexmatcher). 
 The code for each comparison can be found in the following links:
 
 * [NextiaJD](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
@@ -36,16 +36,13 @@ Each project will generated a file with the discovery result. To evaluate them, 
 
 ## Scalability
 
-The most intensive task for our approach in terms of computational resources is the generation of attribute profiles from datasets. Hence, we performed a stress test of this component. 
+The most intensive task for our approach in terms of computational resources is the generation of attribute profiles from datasets. Hence, we performed a stress test of this component. We created a jar to prepare the files for this experiment. The code and more information can be found [here](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/Scalability)
 
-To this end, we created a jar file for spark-submit. The jar can be found [here]().
-
-It contains 4 independent objects.
 
 
 ## Discovery of semantic non-syntactic relationships
 
-This experiment evaluates if nextiajd can find semantic attributes represented in different format. The code for this experiment can be foun [here](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/semanticNS)
+This experiment evaluates if NextiaJD can find semantic attributes represented in different formats. The code for this experiment can be foun [here](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
 
 
 

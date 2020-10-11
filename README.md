@@ -71,7 +71,7 @@ Our Join Discovery is focused on the quality result of a join statement. Thus, w
 * Poor: attributes pair with a containment similarity of 0.1    
 * None: otherwise   
 
-By default, we just show candidates attributes that performs a High and Good quality joins. This can be done by using the function `discovery()` from NextiaJD. As an example the following code will start a discovery to find any attribute from our dataset that can be used for a join with some dataset from the repository.
+You can start a discovery by using the function `discovery()` from NextiaJD. As an example the following code will start a discovery to find any attribute from our dataset that can be used for a join with some dataset from the repository.
   
 ```  
 val dataset = spark.read.csv(...) 
@@ -81,6 +81,8 @@ import org.apache.spark.sql.NextiaJD.discovery
 
 discovery(dataset, repository)
 ```    
+
+By default, we just show candidates attributes that performs a High and Good quality joins. If you want to explore Moderate and Poor results, the discovery function have the parameters `showModerate:Boolean` and `showPoor:Boolean` that allows to see the specified quality in the results. 
   
 
   

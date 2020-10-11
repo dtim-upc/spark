@@ -1,4 +1,4 @@
-name := "prueba"
+name := "NextiaJD"
 
 version := "0.1"
 

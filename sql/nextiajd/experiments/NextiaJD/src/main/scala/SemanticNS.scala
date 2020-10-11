@@ -5,7 +5,7 @@ import org.apache.spark.ml.tuning.CrossValidatorModel
 import org.apache.spark.sql.functions.{col, lit, udf, when}
 import org.apache.spark.sql.SparkSession
 import org.rogach.scallop.ScallopConf
-import org.apache.spark.sql.NextiaJD.{getPredRuled3, second, predict}
+import org.apache.spark.sql.NextiaJD.{second}
 
 object SemanticNS {
 

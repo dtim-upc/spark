@@ -37,23 +37,47 @@ import org.apache.spark.sql.utils.Unzip
 object NextiaJD {
 
 
+  def discovery(queryDataset: DataFrame, candidatesDatasets: Seq[DataFrame], queryAtt: String = "",
+                showPoor: Boolean = false, showModerate: Boolean = false,
+                showAll: Boolean = false): DataFrame = {
 
-  def discovery(queryDataset: DataFrame, candidatesDatasets: Seq[DataFrame],
-                       queryAtt: String = ""): DataFrame = {
     val distances = preDist(queryDataset, candidatesDatasets, queryAtt)
 
     val filename = queryDataset.inputFiles(0).split("/").last
     val pathDiscoveryTmp = queryDataset.inputFiles(0).replace(filename, "discoveryTmp")
 
-    distances.write.mode(SaveMode.Overwrite).format("parquet").save(pathDiscoveryTmp)
 
-    val distancescomputed = queryDataset.sparkSession.read.load(pathDiscoveryTmp).na.fill(0)
-//    predict(distancescomputed)
+    distances.na.fill(0).write.mode(SaveMode.Overwrite).format("parquet").save(pathDiscoveryTmp)
+
+    var distancescomputed = queryDataset.sparkSession.read.load(pathDiscoveryTmp)
+
+    if(showModerate) {
+        distancescomputed = distancescomputed.filter(col("flippedContainment") >= 0.083 )
+    } else {
+      // select pairs that fulfill cardinality proportion for qualities 3 and 4
+      distancescomputed = distancescomputed.filter(col("flippedContainment") >= 0.125 )
+    }
 
     val discovery = predict(distancescomputed)
     val directory = new Directory(new File(pathDiscoveryTmp))
     directory.deleteRecursively()
-    discovery
+
+    if (showAll) {
+      discovery.orderBy(desc("quality"), desc("probability"))
+    } else if ( showPoor && showModerate ) {
+      discovery.filter( col("quality").isin("Poor", "Moderate") )
+        .orderBy(desc("quality"), desc("probability"))
+    } else if ( showPoor ) {
+      discovery.filter( col("quality").isin("Poor") )
+        .orderBy(desc("quality"), desc("probability"))
+    } else if (showModerate) {
+      discovery.filter( col("quality").isin("Moderate") )
+        .orderBy(desc("quality"), desc("probability"))
+    } else {
+      discovery.filter( col("quality").isin( "High", "Good" ) )
+        .orderBy(desc("quality"), desc("probability"))
+    }
+
   }
 
 
@@ -203,7 +227,6 @@ object NextiaJD {
   }
 
 
-  // predictNQL1
   def predict(matchingNom: Dataset[_]): DataFrame = {
 
     val pathM = Unzip.unZipIt(getClass.getResourceAsStream("/models.zip") )
@@ -243,14 +266,8 @@ object NextiaJD {
     directory.deleteRecursively()
 
 
-//    predAll.withColumn("prediction", getPredRuled3(
-//      col("p0"), col("p1"), col("p2"), col("p3"), col("p4"),
-//      col("flippedContainment")
-//    ) ).select("ds_name", "att_name", "ds_name_2", "att_name_2", "prediction",
-//      "p0", "p1", "p2", "p3", "p4", "bestContainment")
 
-
-    predAll.withColumn("prediction", getPredRuled3(
+    predAll.withColumn("prediction", rank(
       col("p0"), col("p1"), col("p2"), col("p3"), col("p4"),
       col("cardinalityRaw"), col("cardinalityRaw_2")
     ) )
@@ -268,7 +285,7 @@ object NextiaJD {
           .when(col("prediction") === 1, lit("Poor"))
           .otherwise(lit("None"))
       )
-      .orderBy(desc("prediction"), desc("probability"))
+
       .select(col("ds_name").as("query dataset"),
         col("att_name").as("query attribute"),
         col("ds_name_2").as("candidate dataset"),
@@ -280,7 +297,7 @@ object NextiaJD {
   }
 
 
-  def getPredictionRuled3(num0: Double, num1: Double, num2: Double, num3: Double,
+  def assignClass(num0: Double, num1: Double, num2: Double, num3: Double,
                           num4: Double, cardinalityQ: Double, cardinalityC: Double): Int = {
     var s = Seq((num4, 4), (num3, 3), (num2, 2), (num1, 1), (num0, 0))
 //    var s = Seq(num0, num1, num2, num3, num4).zipWithIndex
@@ -309,31 +326,20 @@ object NextiaJD {
 
   }
 
-//  def validateLabel(x: Double, flippedCnt: Double): Boolean = x match {
-//    case 2 =>
-//      if (flippedCnt >= 0.082) true else false
-//    case 3 =>
-//      if (flippedCnt >= 0.125) true else false
-//    case 4 =>
-//      if (flippedCnt >= 0.25) true else false
-//    case _ =>
-//      true
-//  }
-
   def validateLabel(index: Double, cardinalityQ: Double,
                     cardinalityC: Double): Boolean = index match {
     case 2 =>
-      if (cardinalityQ*12 >= cardinalityC) true else false
+      if (cardinalityQ/cardinalityC >= 0.083 ) true else false
     case 3 =>
-      if (cardinalityQ*8 >= cardinalityC) true else false
+      if (cardinalityQ/cardinalityC >= 0.125) true else false
     case 4 =>
-      if (cardinalityQ*4 >= cardinalityC) true else false
+      if (cardinalityQ/cardinalityC >= 0.25) true else false
     case _ =>
       true
   }
 
 
-  val getPredRuled3 = udf(getPredictionRuled3(_: Double, _: Double, _: Double
+  val rank = udf(assignClass(_: Double, _: Double, _: Double
     , _: Double, _: Double, _: Double, _: Double): Int)
 
   val second = udf((v: org.apache.spark.ml.linalg.Vector) => v.toArray(1))

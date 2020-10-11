@@ -92,7 +92,7 @@ object NextiaJD_evaluation {
       if(queryType == "querybydataset"){
         println(s"Discovery for $queryDataset")
         val timeQuerying = System.nanoTime
-        val discovery = NextiaJD.discovery(qD, mapDS.-(queryDataset).values.toSeq)
+        val discovery = NextiaJD.discovery(qD, mapDS.-(queryDataset).values.toSeq, showAll = true)
         discovery.repartition(1).write.mode("overwrite").option("header","true")
           .csv(s"${output}/discovery${cnt}.csv")
 
@@ -105,7 +105,7 @@ object NextiaJD_evaluation {
           cnt2 = cnt2 + 1
           println(s"Discovery for $queryDataset for attribute $qA")
           val timeQuerying = System.nanoTime
-          val discovery = NextiaJD.discovery(qD, mapDS.-(queryDataset).values.toSeq, qA)
+          val discovery = NextiaJD.discovery(qD, mapDS.-(queryDataset).values.toSeq, qA, showAll = true)
           discovery.repartition(1).write.mode("overwrite").option("header","true")
             .csv(s"${output}/discovery${cnt2}.csv")
 
@@ -225,15 +225,16 @@ object NextiaJD_evaluation {
 
   def main(args: Array[String]): Unit = {
 
-    val conf = new Conf(args)  // Note: This line also works for "object Main extends App"
-    println("datasetsInfo is: " + conf.datasetsInfo())
-    println("pathDatasets is: " + conf.pathDatasets)
-    println("groudTruth is: " + conf.groudTruth)
-    println("output is: " + conf.output)
-    println("testbed is: " + conf.testbed)
+    val conf = new Conf(args)
 
     run(conf.datasetsInfo().getAbsolutePath, conf.pathDatasets().getAbsolutePath,
       conf.output().getAbsolutePath, conf.testbed(), conf.groudTruth().getAbsolutePath, conf.queryType())
+
+    stop()
+  }
+
+  def stop() :Unit = {
+    spark.stop()
   }
 }
 

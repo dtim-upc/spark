@@ -109,4 +109,4 @@ Check out the [demo project](http://34.89.14.170:8000/notebooks/NextiaJD_demo.ip
  
 ## Evaluation
 
-We performed differents experiments to evaluate nextiaJD. More information about it can be found [here](https://github.com/dtim-upc/spark/tree/nextiajd_v3.0.1/sql/nextiajd/experiments)
+We performed differents experiments to evaluate nextiaJD. More information about it can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments)

@@ -32,9 +32,17 @@ To learn more about it, visit our [web page](https://www.essi.upc.edu/dtim/nexti
 
 We encourage you to read our paper to better understand what NextiaJD is and how can fit your scenarios. 
 
-The simple way to describe it: you have one dataset and a collection of independent datasets. Then, you will like to find other datasets with attributes that can be joined. NextiaJD reduces the effort to do a manual exploration by predicting which attributes are candidates for a join based on some qualities defined.
+The simple way to describe it: 
 
-As an example, it can be used in two scenarios:
+<div align="center">
+ <img src="https://github.com/dtim-upc/spark/raw/nextiajd_v3.0.1/sql/nextiajd/img/example.gif?raw=true" alt="NextiaJD" width="300">
+</div>
+
+You have one dataset and a collection of independent datasets. Then, you will like to find other datasets with attributes that performed a high quality join.
+ 
+NextiaJD reduces the effort to do a manual exploration by predicting which attributes are candidates for a join based on some qualities defined. 
+
+We have as an example two scenarios:
 
 * In a data lake when a new dataset is ingested,  a profile should be computed. Then, whenever a data analysts has a dataset, NextiaJD can find other datasets in the data lake that can be joined.
 * In a normal repository,  when having a few datasets and we want to know how they can be crossed against one dataset.
@@ -42,11 +50,11 @@ As an example, it can be used in two scenarios:
 
 ## Usage    
     
-NextiaJD only supports Scala and Java programming. It is required those versions will be compatible with the version of Spark.    
+NextiaJD only supports a compatible version of Scala and Java for Spark 3+.     
   
 ### Attribute profiling  
   
-To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed it is saved in the dataset directory. This allows to reuse the profile for future discoveries.  
+To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed it is saved in the dataset directory. This allows to reuse the profile for future discoveries without having to compute it again.
   
 ```  
 val dataset = spark.read.csv(...)  
@@ -55,22 +63,25 @@ dataset.attributeProfile() dataset.getAttributeProfile() # returns a dataframe w
   
 ### Join Discovery  
   
-A Join Discovery will return the attributes pairs ordered by their relevance as indicator of the quality of the resulting join. To get more information visit our [web page]()  
-  
-  
-NextiaJD defines a totally-ordered set of quality classes:    
-    
-* High: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 4.    
-* Good: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 4.     
-* Moderate: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 4.     
+Our Join Discovery is focused on the quality result of a join statement. Thus, we defined a totally-ordered set of quality classes:
+
+* High: attributes pair with a containment similarity of 0.75 and a maximum cardinality proportion of 4.    
+* Good: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 8.     
+* Moderate: attributes pair with a containment similarity of 0.25 and a maximum cardinality proportion of 12.     
 * Poor: attributes pair with a containment similarity of 0.1    
-* None: otherwise    
-    
-In case you want to start a dataset profile you can use the method. This option is recommended once a dataset is ingested into the repository    
-uilding and maintaining    
- <!---
- ### [Guide video]()  
- -->   
+* None: otherwise   
+
+By default, we just show candidates attributes that performs a High and Good quality joins. This can be done by using the function `discovery()` from NextiaJD. As an example the following code will start a discovery to find any attribute from our dataset that can be used for a join with some dataset from the repository.
+  
+```  
+val dataset = spark.read.csv(...) 
+val repository = # list of datasets  
+
+import org.apache.spark.sql.NextiaJD.discovery
+
+discovery(dataset, repository)
+```    
+  
 
   
 ## Installation

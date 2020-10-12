@@ -51,7 +51,7 @@ We have as an example two scenarios:
   
 To run NextiaJD in your computer, there are two options: by downloading the compiled jars *(Recommended)* or by building the jars from this project. Both options are explained in this section.
   
-### Pre-requisites
+### Prerequisites
 
 * Spark 3.0.1
 * Scala 2.12.

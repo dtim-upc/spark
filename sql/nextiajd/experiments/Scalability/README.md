@@ -1,15 +1,18 @@
 # Scalability
 
-Since we target large-scale scenarios, we evaluate the scalability
-of our NextiaJD in such settings. We experiment with different
-file sizes both in terms of rows and columns. For this goal, we create 4 different objects that allows to create the files requirements for this experiment based on a base file. Here you can find the following:
+Since we target large-scale scenarios, we evaluate the scalability of our NextiaJD in such settings. We experiment with different
+file sizes both in terms of rows and columns. For this goal, we create 4 different classes that allows to recreate this experiment and creates the files requirements for this experiment based on a base file.
 
-* GeneratorM. It replicates M columns from a base file.
-* GeneratorN. It replicates N rows from a base file.
-* ToParquet. It converts a csv file to a parquet file.
-* Profiling. This object will measure the profiling time from a list of datasets
-                                                                                    
-All these objects are packaged in a jar file to work with spark-submit. You can find the jar [here]() and the source code [here]()
+
+## Prerequisites
+
+* NextiaJD. To see how to install NextiaJD [check this page](https://github.com/dtim-upc/NextiaJD#installation). 
+* The spark-submit script. You can find this scrip in your Spark installation under bin folder e.g $SPARK_HOME/bin
+* Download the [JAR](https://mydisk.cs.upc.edu/s/itRkyqC5yPzd7r3/download) and the source code can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/Scalability/src/main/scala). This JAR contains the following classes:
+    * **GeneratorM** it replicates M columns from a base file.
+    * **GeneratorN** it replicates N rows from a base file.
+    * **ToParquet** it converts a csv file to a parquet file.
+    * **Profiling** it will measure the profiling time from a list of datasets
 
 ## GeneratorM
 
@@ -26,6 +29,7 @@ This object generates a new file with a suffix Gen{M} where M is the number of c
 | -i, --ignore-trailing | False    | Ignores dataset trailing. Default value is true          |
 | -d, --delimiter       | False    | Dataset delimiter. Default value is ","                  |
 | -h, --help            | False    | Show help message                                        |
+
 
 ## GeneratorN
 

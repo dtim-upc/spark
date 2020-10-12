@@ -1,20 +1,22 @@
 # NextiaJD experiments
 
+These experiments are packaged in a JAR file and is designed to work with `spark-submit` and NextiaJD. For all experiments of NextiaJD we are going to use the same JAR and can be downloaded from [here]( https://mydisk.cs.upc.edu/s/WPp7ApMzeyPc7sX/download)
 
-Here you can find the code for:
+This JAR contains three main classes:
 
-*  Predictive accuracy: generates the discovery and time execution for the testbed
-*  Confusion matrix generator: generates the confusion matrices  and their metrics for the state-of-the-art
-*  Discovery of semantic non-sytactic relationships
+*  **NextiaJD_evaluation** will compute the predictive accuracy: generates the discovery and time execution for the testbed
+*  **EvaluateDiscovery** Confusion matrix generator: generates the confusion matrices  and their metrics for the state-of-the-art
+*  **SemanticNS** will performa discovery for the semantic non-sytactic relationships
 
-## Installation
+## Prerequisites
 
-The code have the structure of an SBT project. It was tested on [Intellij IDEA](https://www.jetbrains.com/es-es/idea/). It is necessary to place NextiaJD jars in the lib folder.
+* NextiaJD. To see how to install NextiaJD [check this page](https://github.com/dtim-upc/NextiaJD#installation). 
+* The spark-submit script. You can find this scrip in your Spark installation under bin folder e.g $SPARK_HOME/bin
 
 ## Running Predictive accuracy
 
 
-To run this experiment, you need to execute the file [NextiaJD_evaluation.scala](https://github.com/dtim-upc/NextiaJD/blob/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD/src/main/scala/NextiaJD_evaluation.scala) with the following arguments:
+To run this experiment, you need to execute the class **NextiaJD_evaluation** from the [JAR]( https://mydisk.cs.upc.edu/s/WPp7ApMzeyPc7sX/download). This class have the following arguments:
 
 
 | Parameter           | Required | Description                                                                                                 |
@@ -27,15 +29,29 @@ To run this experiment, you need to execute the file [NextiaJD_evaluation.scala]
 | -t, --testbed       | False    | testbed type: XS, S, M, L. It will be used to write a suffix in the filenames generated. Default is ""      |
 | -h, --help          | False    | Show help message                                                                                           |
 
+An example of how to run this class with Spark-submit is:
+
+```
+spark-submit \
+--class NextiaJD_evaluation \
+--master local[*]  /DTIM/nextiajd-experiments.jar \
+-d /DTIM/testbedXS/datasetInformation_testbedXS.csv \
+-g /DTIM/testbedXS/groundTruth_testbedXS.csv \
+-p /DTIM/datasets -o /DTIM/output
+```
+
+
+### Results
+
 The results of the code are:
 
 *   NextiaJD_testbed.csv: file containing the discovery results and the ground truth
 *   Nextia_evaluation_testbed.csv: file containing the confusion matrix and its metrics
 *   time_testbed.txt: file containing the times from the execution: pre runtime and runtime
 
-## Confusion matrix generator
+## Discovery metrics
 
-This code allows you to compare the results of NextiaJD, LSH Ensemble and FlexMatcher. The following parameters are needed:
+To run this experiment, you need to execute the class **EvaluateDiscovery** from the [JAR](https://mydisk.cs.upc.edu/s/WPp7ApMzeyPc7sX/download) .This code allows to obtain the metrics (confusion matrix) for the discovery results of NextiaJD, LSH Ensemble and FlexMatcher. The following parameters are needed:
 
 
 | Parameter         | Required | Description                                             |
@@ -52,16 +68,28 @@ This code allows you to compare the results of NextiaJD, LSH Ensemble and FlexMa
 | -o, --output      | True     | path to write the results metrics e.g. confusion matrix |
 | --help            | False    | Prints the parameter summary                            |
 
-The result of the code is the file Comparison_state_of_the_art.txt` with the binary confusion matrices and their metrics. If discoveries for testbeds S and M are provided. The code will merge the discovery results for each solution.
+You need to run it with spark-submit. An example of how to run this class with Spark-submit is:
 
+```
 
-## Discovery of semantic non-sytactic relationships
+spark-submit \
+--class EvaluateDiscovery \
+--master local[*] /DTIM/nextiajd-experiments.jar \
+-n /DTIM/nextiaJD_testbedXS.csv \
+--nextiajd-m /DTIM/nextiaJD_testbedM.csv \
+--nextiajd-s /DTIM/nextiaJD_testbedS.csv \
+-l /DTIM/LSH_textbedXS.csv \
+--lsh-m /DTIM/lsh_testbedM.csv \
+--lsh-s /DTIM/lsh_tesbedS.csv \
+-f /DTIM/flextMatcherResults_testbedXS.csv \
+--flexmatcher-m /DTIM/flextMatcherResults_testbedXS.csv \
+--flexmatcher-s /DTIM/flextMatcherResults_testbedXS.csv \
+-o /DTIM/output
+```
 
-For this experiment, it is necessary to download the following [models]() since we deactivating the chain classifier strategy for this kind of pairs. The code needs the following parameters:
+### Results
 
-| Parameter          | Required | Description                                 |
-|--------------------|----------|---------------------------------------------|
-| -m, --models-dir   | True     | Path to the folder containing the models    |
-| -o, --output       | True     | Path to write the results                   |
-| -s, --semantics-ns | True     | Path to the semantic non-syntactic csv file |
-| -h, --help         | False    | Show help message                           |
+The results of the code is:
+
+*   Comparison_state_of_the_art.txt contains the binary confusion matrices and their metrics. If discoveries for testbeds S and M are provided. The code will merge the discovery results for each solution to generate just one matrix for solution.
+

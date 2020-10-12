@@ -128,6 +128,8 @@ object EvaluateDiscovery {
     lines = lines + getStats(spark, fullLSH, "LSH Ensemble Full matrix")
 
     val outputfile = output+s"/Comparison_state_of_the_art.txt"
+    println(lines)
+    println("")
     println(s"Writting comparison in file: ${outputfile}")
     writeFile(outputfile, Seq(lines))
 

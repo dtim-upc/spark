@@ -32,7 +32,6 @@ object SemanticNS {
     val semantics = spark.read.option("header", "true").option("inferSchema","true")
       .csv(conf.semanticsNs().getAbsolutePath)
 
-    semantics.printSchema()
 
     val cvModel0 = CrossValidatorModel.load(s"${conf.modelsDir().getAbsolutePath}/class0")
     val cvModel1 = CrossValidatorModel.load(s"${conf.modelsDir().getAbsolutePath}/class1")
@@ -65,9 +64,12 @@ object SemanticNS {
 
     val metricsFile = conf.output()+s"/NextiaJD_semanticNS.txt"
     writeFile(metricsFile,Seq(metrics))
-    println(s"Writting semantic non-syntactic metrics in file: ${metricsFile}")
 
+    println(metrics)
 
+    println(s"\nWritting semantic non-syntactic metrics in file: ${metricsFile}")
+
+    spark.stop()
   }
 }
 

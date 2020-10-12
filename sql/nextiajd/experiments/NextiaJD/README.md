@@ -14,7 +14,7 @@ The code have the structure of an SBT project. It was tested on [Intellij IDEA](
 ## Running Predictive accuracy
 
 
-To run this experiment, you need to execute `NextiaJD_evaluation.scala` with the following arguments:
+To run this experiment, you need to execute the file [NextiaJD_evaluation.scala](https://github.com/dtim-upc/NextiaJD/blob/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD/src/main/scala/NextiaJD_evaluation.scala) with the following arguments:
 
 
 | Parameter           | Required | Description                                                                                                 |

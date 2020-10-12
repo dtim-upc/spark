@@ -8,12 +8,12 @@ For evaluation purposes, we collected 139 real datasets. We further divided such
 
 | Testbed | File size       | datasets | String attributes |
 |---------|-----------------|----------|-------------------|
-| XS      | up to 1mb       | 28       | 159               |
-| S       | up to 100mb     | 46       | 590               |
-| M       | up to 1gb       | 46       | 600               |
-| L       | bigger than 1gb | 29       | 331               |
+| [XS](https://mydisk.cs.upc.edu/s/eCmfrNEBSKkcWcn/download)      | up to 1mb       | 28       | 159               |
+| [S](https://mydisk.cs.upc.edu/s/dX3FajwWZn7rrrd/download)       | up to 100mb     | 46       | 590               |
+| [M](https://mydisk.cs.upc.edu/s/niPyR4WTtxydprj/download)       | up to 1gb       | 46       | 600               |
+| [L](https://mydisk.cs.upc.edu/s/4qoi76ziT2wJaCR/download)       | bigger than 1gb | 29       | 331               |
 
-The testbeds are public and can be downloaded from [here](https://mydisk.cs.upc.edu/s/mXMnNo4ARAPxLg3?path=%2Finput_datasets). Each testbed zip file contains the following files:
+Each testbed zip file contains the following files:
 
 * **datasetInformation_testbedX.csv** contains a list with the datasets names, the configuration to read them properly and the dataset source.
 * **groundTruth_testbedX.csv** contains the ground truth with the containment obtained and the quality assigned for each pair of attributes.
@@ -42,7 +42,7 @@ The most intensive task for our approach in terms of computational resources is 
 
 ## Discovery of semantic non-syntactic relationships
 
-This experiment evaluates if NextiaJD can find semantic attributes represented in different formats. The code for this experiment can be foun [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
+This experiment evaluates if NextiaJD can find semantic attributes represented in different formats. The code for this experiment can be foun [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/SemanticNS)
 
 
 

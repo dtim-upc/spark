@@ -12,6 +12,7 @@ This JAR contains three main classes:
 
 * NextiaJD. To see how to install NextiaJD [check this page](https://github.com/dtim-upc/NextiaJD#installation). 
 * The spark-submit script. You can find this scrip in your Spark installation under bin folder e.g $SPARK_HOME/bin
+* A testbed generated for the experiment. See [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments) for more information.
 
 ## Running Predictive accuracy
 

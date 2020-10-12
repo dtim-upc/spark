@@ -1,14 +1,6 @@
 # Discovery of Semantic Non-Syntactic relationships
 
-
-
-These experiments are packaged in a JAR file and is designed to work with `spark-submit` and NextiaJD. For all experiments of NextiaJD we are going to use the same JAR and can be downloaded from
-
-This JAR contains three main classes:
-
-*  **NextiaJD_evaluation** will compute the predictive accuracy: generates the discovery and time execution for the testbed
-*  **EvaluateDiscovery** Confusion matrix generator: generates the confusion matrices  and their metrics for the state-of-the-art
-*  **SemanticNS** will performa discovery for the semantic non-sytactic relationships
+For this experiment, we manually curated a test dataset D of 532 semantic non-syntactic attribute pairs and compute the distances required by the models.
 
 ## Prerequisites
 

@@ -9,13 +9,13 @@
 
 
 <p align="center">
-  <a href="#how-to-use">About</a> •
+  <a href="#about">About</a> •
   <a href="#key-features">Key Features</a> •
   <a href="#how-it-works">How it works</a> •
   <a href="#usage">Usage</a> •
-   <a href="#installation">Installation</a> •
+  <a href="#installation">Installation</a> •
   <a href="#demo">Demo</a> •
-  <a href="#benchmarks">Benchmarks</a>
+  <a href="#experiments-reproducibility">Experiments reproducibility</a>
 </p>
 
 ## About
@@ -47,48 +47,51 @@ We have as an example two scenarios:
 * In a data lake when a new dataset is ingested,  a profile should be computed. Then, whenever a data analysts has a dataset, NextiaJD can find other datasets in the data lake that can be joined.
 * In a normal repository,  when having a few datasets and we want to know how they can be crossed against one dataset.
 
-## Installation
-  
-To run NextiaJD in your computer, there are two options: by downloading the compiled jars *(Recommended)* or by building the jars from this project. Both options are explained in this section.
-  
-### Prerequisites
+## Prerequisites
 
 * Spark 3.0.1
 * Scala 2.12.
 * Java 8 or 11
-### By Downloading compiled jars
 
-You can download the final compiled jars using these links: 
-
-    * [Spark-NextiaJD](https://mydisk.cs.upc.edu/s/7wKRxp3DJTgQ7yb/download)
-    * [SparkSQL](https://mydisk.cs.upc.edu/s/B36NjoYC6LTP5GQ/download)
-    * [Catalyst](https://mydisk.cs.upc.edu/s/j6KfLkgqxtprDod/download)
-
-Once you have the jars, you need to move them to your Spark installation directory under the folder jars. Usually this directory is in $SPARK_HOME/jars. Note that it is necessary to replace spark-sql and spark-catalyst with our compile jars.
-
+## Installation
+  
+There are two options to install NextiaJD in your computer: <a href="#by-building-nextiajd-jars">building the jars from this repository using Maven</a> or <a href="#by-downloading-the-compiled-jars">downloading the NextiaJD compiled jars</a> *(Recommended)*
+  
 ### By Building NextiaJD jars 
 
-Build the source code from this repository. The following commands will build the spark catalyst, spark sql and spark nextiajd jars:
-   * Clone this project  
+To install NextiaJD you need to follow the steps below:
+
+* Clone this project
 ```  
 $ git clone https://github.com/  
 ```  
-* Build through Maven:  
+* Go to the project root directory in a terminal
+* Run the command below. It will build the spark catalyst, spark sql and spark nextiajd jars through Maven. Note that this will take some time.
+    * Alternatively, you can build the whole Spark project as specified [here](https://spark.apache.org/docs/latest/building-spark.html)
 ```  
 ./build/mvn clean package -pl :spark-catalyst_2.12,:spark-sql_2.12,:spark-nextiajd_2.12 -DskipTests 
 ```
+* If the build succeeds, you can find the compiled jars under the following directories:
+    * /sql/nextiajd/target/spark-nextiajd_2.12-3.0.1.jar
+    * /sql/core/target/spark-sql_2.12-3.0.1.jar
+    * /sql/catalyst/target/spark-catalyst_2.12-3.0.1.jar
+* Then go to your Spark directory under the **jars** folder e.g. **$SPARK_HOME/jars**
+* Place the compile jars inside the **jars** folder
+    * Replace all jars if it asks
+* Finally, you are ready to use NextiaJD        
 
-Alternatively, we can build the whole Spark project as specified [here](https://spark.apache.org/docs/latest/building-spark.html). If the build succeeds, you can find the compiled jars under the folders:
+### By Downloading the compiled jars
 
-* /sql/nextiajd/target/spark-nextiajd_2.12-3.0.1.jar
-* /sql/core/target/spark-sql_2.12-3.0.1.jar
-* /sql/catalyst/target/spark-catalyst_2.12-3.0.1.jar
+To install NextiaJD you need to follow the steps below:
 
-Once you have the jars, you need to move them to your Spark installation directory under the folder jars. Usually this directory is in $SPARK_HOME/jars. Note that it is necessary to replace spark-sql and spark-catalyst with our compile jars.
-
-
-
-      
+* First, you need to download the compiled jars using these links: 
+    * [Spark-NextiaJD](https://mydisk.cs.upc.edu/s/7wKRxp3DJTgQ7yb/download)
+    * [SparkSQL](https://mydisk.cs.upc.edu/s/B36NjoYC6LTP5GQ/download)
+    * [Catalyst](https://mydisk.cs.upc.edu/s/j6KfLkgqxtprDod/download)
+* Go to your Spark directory under the **jars** folder e.g. **$SPARK_HOME/jars**
+* Place the downloaded jars inside the **jars** folder
+    * Replace all jars if it asks
+* Finally, you are ready to use NextiaJD    
 
 ## Usage    
          

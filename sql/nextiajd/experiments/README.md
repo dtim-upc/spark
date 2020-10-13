@@ -42,7 +42,7 @@ The most intensive task for our approach in terms of computational resources is 
 
 ## Discovery of semantic non-syntactic relationships
 
-This experiment evaluates if NextiaJD can find semantic attributes represented in different formats. The code for this experiment can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/SemanticNS)
+This experiment evaluates if NextiaJD can find semantic attributes represented in different formats. The code for this experiment can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/SemanticNS#discovery-of-semantic-non-syntactic-relationships)
 
 
 

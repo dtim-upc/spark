@@ -47,7 +47,7 @@ We have as an example two scenarios:
 * In a data lake when a new dataset is ingested,  a profile should be computed. Then, whenever a data analysts has a dataset, NextiaJD can find other datasets in the data lake that can be joined.
 * In a normal repository,  when having a few datasets and we want to know how they can be crossed against one dataset.
 
-## Prerequisites
+## Requirements
 
 * Spark 3.0.1
 * Scala 2.12.
@@ -69,7 +69,7 @@ $ git clone https://github.com/
 * Run the command below. It will build the spark catalyst, spark sql and spark nextiajd jars through Maven. Note that this will take some time.
     * Alternatively, you can build the whole Spark project as specified [here](https://spark.apache.org/docs/latest/building-spark.html)
 ```  
-./build/mvn clean package -pl :spark-catalyst_2.12,:spark-sql_2.12,:spark-nextiajd_2.12 -DskipTests 
+$ ./build/mvn clean package -pl :spark-catalyst_2.12,:spark-sql_2.12,:spark-nextiajd_2.12 -DskipTests 
 ```
 * If the build succeeds, you can find the compiled jars under the following directories:
     * /sql/nextiajd/target/spark-nextiajd_2.12-3.0.1.jar
@@ -97,26 +97,28 @@ To install NextiaJD you need to follow the steps below:
          
 ### Attribute profiling  
   
-To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed it is saved in the dataset directory. This allows to reuse the profile for future discoveries without having to compute it again.
+To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed, it will be saved in the dataset directory. This allows to reuse the profile for future discoveries without having to compute it again.
   
 ```  
 val dataset = spark.read.csv(...)  
-dataset.attributeProfile() dataset.getAttributeProfile() # returns a dataframe with the profile information  
+# returns a dataframe with the profile information
+dataset.attributeProfile() dataset.getAttributeProfile()   
 ```  
   
 ### Join Discovery  
   
 Our Join Discovery is focused on the quality result of a join statement. Thus, we defined a totally-ordered set of quality classes:
 
-* High: attributes pair with a containment similarity of 0.75 and a maximum cardinality proportion of 4.    
-* Good: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 8.     
-* Moderate: attributes pair with a containment similarity of 0.25 and a maximum cardinality proportion of 12.     
-* Poor: attributes pair with a containment similarity of 0.1    
-* None: otherwise   
+* **High**: attributes pair with a containment similarity of 0.75 and a maximum cardinality proportion of 4.    
+* **Good**: attributes pair with a containment similarity of 0.5 and a maximum cardinality proportion of 8.     
+* **Moderate**: attributes pair with a containment similarity of 0.25 and a maximum cardinality proportion of 12.     
+* **Poor**: attributes pair with a containment similarity of 0.1    
+* **None**: otherwise   
 
-You can start a discovery by using the function `discovery()` from NextiaJD. As an example the following code will start a discovery to find any attribute from our dataset that can be used for a join with some dataset from the repository.
+You can start a discovery by using the function `discovery()` from `org.apache.spark.sql.NextiaJD`. As an example the following code will start a discovery to find any attribute from our dataset that can be used for a join with some dataset from the repository.
   
 ```  
+import org.apache.spark.sql.NextiaJD.discovery
 val dataset = spark.read.csv(...) 
 val repository = # list of datasets  
 
@@ -125,7 +127,7 @@ import org.apache.spark.sql.NextiaJD.discovery
 discovery(dataset, repository)
 ```    
 
-By default, we just show candidates attributes that performs a High and Good quality joins. If you want to explore Moderate and Poor results, the discovery function have the parameters `showModerate:Boolean` and `showPoor:Boolean` that allows to see the specified quality in the results. 
+By default, we just show candidates attributes that performs a High and Good quality joins. If you want to explore Moderate and Poor results, the discovery function have the boolean parameters `showModerate` and `showPoor`. Once enable, the discovery only show results for the specified quality.  
   
 
   

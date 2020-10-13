@@ -31,12 +31,13 @@ To run this experiment, you need to execute the class **NextiaJD_evaluation** fr
 
 * Go to your Spark installation under the bin folder e.g $SPARK_HOME/bin
 * Open the terminal
-* Run it using the below command. Note that you should replace the parameters by your directories.
+* Run it using the below command. Note that you should replace the parameters by your own directories. The parameter `spark.driver.memory` is added to the spark-submit command since the default value could result in GC overhead limit exceeded exception.
 
 ```
 spark-submit \
 --class NextiaJD_evaluation \
 --master local[*]  /DTIM/nextiajd-experiments.jar \
+--conf spark.driver.memory=5g \
 -d /DTIM/testbedXS/datasetInformation_testbedXS.csv \
 -g /DTIM/testbedXS/groundTruth_testbedXS.csv \
 -p /DTIM/datasets -o /DTIM/output

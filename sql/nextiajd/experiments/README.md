@@ -30,11 +30,11 @@ The code and instructions for this experiment can be found [here](https://github
 We compare our approach with the following state-of-the-art data discovery solutions, whose source code is openly available: [LSH Ensemble](https://github.com/ekzhu/datasketch) and [FlexMatcher](https://github.com/biggorilla-gh/flexmatcher). 
 The code and instruction for each solution can be found in the following links:
 
-* [NextiaJD](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments) (same as Experiment 1)
+* [NextiaJD](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments) -- Note that it is not necessary to run again this step if you previously executed Experiment 1.
 * [FlexMatcher](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher#flexmatcher-discovery)
 * [LSH Ensemble](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble#lsh-ensemble-discovery)
 
-Each solution will generate a discovery file with the results proposed. To evaluate them, we can use the class `EvaluateDiscovery`, which is described in the following [website](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#discovery-metrics) (same as Experiment 1).
+Each solution will generate a discovery file with the results proposed. Afterwards, in order to combine the results, we provide you with class `EvaluateDiscovery`. The instructions on how to use it are described in the following [website](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/DiscoveryMetrics).
 
 ## Experiment 3: Scalability
 

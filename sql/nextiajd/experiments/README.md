@@ -20,16 +20,16 @@ Each testbed zip file contains the below files:
 * **dataset folder** contains all datasets used for the testbed
 ## Predictive accuracy 
 
-The goal of the first experiment is to evaluate the prediction quality on generating a ranking of candidate equi join predicates. The code and instructions for this experiment can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
+The goal of the first experiment is to evaluate the prediction quality on generating a ranking of candidate equi join predicates. The code and instructions for this experiment can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments)
 
 ## Data Discovery for the state-of-the-art
 
 We compare our approach with the following state-of-the-art data discovery solutions, whose source code is openly available: [LSH Ensemble](https://github.com/ekzhu/datasketch) and [FlexMatcher](https://github.com/biggorilla-gh/flexmatcher). 
 The code and instruction for each solution can be found in the following links:
 
-* [NextiaJD](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
-* [FlexMatcher](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher)
-* [LSH Ensemble](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble)
+* [NextiaJD](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments)
+* [FlexMatcher](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher#flexmatcher-discovery)
+* [LSH Ensemble](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble#lsh-ensemble-discovery)
 
 Each solution will generate a discovery file with the results proposed. To evaluate them, we can use the class `EvaluateDiscovery` describe it in [this project](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#discovery-metrics)
 

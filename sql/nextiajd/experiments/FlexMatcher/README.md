@@ -1,21 +1,22 @@
 # FlexMatcher discovery
 
+## Requirements
+
+* Python 3.6
+
 ## Installation
 
-The only prerequisite is Python (tested with 3.6)
-
-1. Clone the repository
-2. Install the dependencies by running the following command:
+* Clone the repository
+* Open the terminal
+* Go to the project root directory
+* Install the dependencies by running the following command:
 ```
 pip install -r requirements.txt
 ```
 
+## Parameters
 
-## Running 
-
-1. Run `FlexMatcher_comparison.py` to execute the benchmark
-
-Required arguments 
+The below parameters are required:
 
 | Parameter     | Required | Description                                                                             |
 |---------------|----------|-----------------------------------------------------------------------------------------|
@@ -23,3 +24,17 @@ Required arguments
 | --datasetsDir | True     | Path to the Datasets folder                                                             |
 | --output      | True     | Path to write discovery results and time execution                                      |
 | --testbed     | False    | testbed type: XS, S, M, L. It will be used to write a suffix in the filenames generated |
+
+## Run
+
+* Open the terminal
+* Go to the directory for the file [FlexMatcher_comparison.py](https://github.com/dtim-upc/NextiaJD/blob/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher/FlexMatcher_comparison.py)
+* Run the `FlexMatcher_comparison.py` to execute the discovery by using the below command. Note you should replace the parameters values with your own.
+
+```
+python FlexMatcher_comparison.py \
+--datasetInfo /DTIM/datasetInformation_testbedXS.csv \
+--datasetsDir /DTIM/datasets \
+--output /DTIM/output
+```
+

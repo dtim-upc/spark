@@ -7,7 +7,6 @@
 
 <h4 align="center">A Scalable Data Discovery solution using profilies based on <a href="https://spark.apache.org/" target="_blank">Apache Spark</a>.</h4>
 
-
 <p align="center">
   <a href="#about">About</a> •
   <a href="#key-features">Key Features</a> •
@@ -15,13 +14,13 @@
   <a href="#usage">Usage</a> •
   <a href="#installation">Installation</a> •
   <a href="#demo">Demo</a> •
-  <a href="#experiments-reproducibility">Experiments reproducibility</a>
+  <a href="#experiments-reproducibility">Reproducibility</a>
 </p>
 
 ## About
-**NextiaJD** is a Scalable Data Discovery solution using profiles. We aim to  discover automatically attributes pairs in a massive collection of heterogeneous datasets (i.e., data lakes) that can be crossed.     
-  
-To learn more about it, visit our [web page](https://www.essi.upc.edu/dtim/nextiajd/)  
+**NextiaJD**, from <a href="https://nahuatl.uoregon.edu/content/nextia" target="_blank">*nextia*</a> in the <a href="https://en.wikipedia.org/wiki/Nahuatl" target="_blank">Nahuatl</a> language (the old Aztec language), is a scalable data discovery system. **NextiaJD** computes profiles, which are succint representations of the underlying characteristics of datasets and their attributes, to efficiently discover joinable attributes on datasets. We aim to automatically discover pairs of attributes in a massive collection of heterogeneous datasets (i.e., data lakes) that can be crossed.
+
+Here, we provide you detailed information on how to run and evaluate NextiaJD. To learn more about the project, visit our [website](https://www.essi.upc.edu/dtim/nextiajd/).
 
 ## Key features   
 * Attribute profiling built-in Spark  
@@ -57,7 +56,7 @@ We have as an example two scenarios:
   
 There are two options to install NextiaJD in your computer: <a href="#by-building-nextiajd-jars">building the jars from this repository using Maven</a> or <a href="#by-downloading-the-compiled-jars">downloading the NextiaJD compiled jars</a> *(Recommended)*
   
-### By Building NextiaJD jars 
+### Build from sources 
 
 To install NextiaJD you need to follow the steps below:
 
@@ -76,11 +75,10 @@ $ ./build/mvn clean package -pl :spark-catalyst_2.12,:spark-sql_2.12,:spark-next
     * /sql/core/target/spark-sql_2.12-3.0.1.jar
     * /sql/catalyst/target/spark-catalyst_2.12-3.0.1.jar
 * Then go to your Spark directory under the **jars** folder e.g. **$SPARK_HOME/jars**
-* Place the compile jars inside the **jars** folder
-    * Replace all jars if it asks
-* Finally, you are ready to use NextiaJD        
+* Place the downloaded JARs inside the **jars** folder (replace any if necessary)
+* You are now ready to use NextiaJD        
 
-### By Downloading the compiled jars
+### Download the compiled JARs
 
 To install NextiaJD you need to follow the steps below:
 
@@ -89,9 +87,8 @@ To install NextiaJD you need to follow the steps below:
     * [SparkSQL](https://mydisk.cs.upc.edu/s/B36NjoYC6LTP5GQ/download)
     * [Catalyst](https://mydisk.cs.upc.edu/s/j6KfLkgqxtprDod/download)
 * Go to your Spark directory under the **jars** folder e.g. **$SPARK_HOME/jars**
-* Place the downloaded jars inside the **jars** folder
-    * Replace all jars if it asks
-* Finally, you are ready to use NextiaJD    
+* Place the downloaded JARs inside the **jars** folder (replace any if necessary)
+* You are now ready to use NextiaJD    
 
 ## Usage    
          
@@ -128,14 +125,11 @@ discovery(dataset, repository)
 ```    
 
 By default, we just show candidates attributes that performs a High and Good quality joins. If you want to explore Moderate and Poor results, the discovery function have the boolean parameters `showModerate` and `showPoor`. Once enable, the discovery only show results for the specified quality.  
-  
 
-  
+## Demo (Jupyter Notebook) 
 
-##  Demo  
-
-Check out the [demo project](http://34.89.14.170:8000/notebooks/NextiaJD_demo.ipynb) for a quick example of how NextiaJD works. The password for the notebook is `password`
+Check out the [demo project](http://34.89.14.170:8000/notebooks/NextiaJD_demo.ipynb) for a quick example of how NextiaJD works. The password for the notebook is `password`.
  
-## Experiments Reproducibility
+## Reproducibility of Experiments
 
-We performed differents experiments to evaluate nextiaJD. More information about it can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments#experiments-reproducibility)
+We performed differents experiments to evaluate the predictive performance and efficiency of NextiaJD. In the spirit of open research and experimental reproducibility, we provide detailed information on how to reproduce them. More information about it can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments#experiments-reproducibility).

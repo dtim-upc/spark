@@ -31,7 +31,7 @@ The code and instruction for each solution can be found in the following links:
 * [FlexMatcher](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher)
 * [LSH Ensemble](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble)
 
-Each solution will generate a discovery file with the results proposed. To evaluate them, we can use the class `EvaluateDiscovery` describe it in [this project](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD)
+Each solution will generate a discovery file with the results proposed. To evaluate them, we can use the class `EvaluateDiscovery` describe it in [this project](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#discovery-metrics)
 
 
 ## Scalability

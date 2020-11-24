@@ -62,7 +62,7 @@ To install NextiaJD you need to follow the steps below:
 
 * Clone this project
 ```  
-$ git clone https://github.com/  
+$ git clone https://github.com/dtim-upc/NextiaJD
 ```  
 * Go to the project root directory in a terminal
 * Run the command below. It will build the spark catalyst, spark sql and spark nextiajd jars through Maven. Note that this will take some time.

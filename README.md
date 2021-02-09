@@ -94,12 +94,14 @@ To install NextiaJD you need to follow the steps below:
          
 ### Attribute profiling  
   
-To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed, it will be saved in the dataset directory. This allows to reuse the profile for future discoveries without having to compute it again.
+To start a profiling we can use the method `attributeProfile()`from a DataFrame object. By default, once a profile is computed, it will be saved in the dataset directory. This allows to reuse the profile for future discoveries without having to compute it again. While you can use any dataset format, we recommend to use parquet files to compute profiles faster.
   
 ```  
 val dataset = spark.read.csv(...)  
+# computes attribute profile
+dataset.attributeProfile() 
 # returns a dataframe with the profile information
-dataset.attributeProfile() dataset.getAttributeProfile()   
+dataset.getAttributeProfile()   
 ```  
   
 ### Join Discovery  

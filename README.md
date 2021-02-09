@@ -128,9 +128,11 @@ discovery(dataset, repository)
 
 By default, we just show candidates attributes that performs a High and Good quality joins. If you want to explore Moderate and Poor results, the discovery function have the boolean parameters `showModerate` and `showPoor`. Once enable, the discovery only show results for the specified quality.  
 
-## Demo (Jupyter Notebook) 
+## Demo (Zeppelin Notebook) 
 
-Check out the [demo project](http://34.89.14.170:8000/notebooks/NextiaJD_demo.ipynb) for a quick example of how NextiaJD works. The password for the notebook is `password`.
+Check out the [demo project](http://35.222.211.178:8080/#/notebook/2FQSWVBQ8) for a quick example of how NextiaJD works. Bear in mind that, in order to access them you must first login with the following credentials (user: user1, password: nextiajd).
+
+More information and a video can be found [here](https://www.essi.upc.edu/~snadal/nextiajd.html#demonstration)
  
 ## Reproducibility of Experiments
 

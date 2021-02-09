@@ -132,6 +132,8 @@ By default, we just show candidates attributes that performs a High and Good qua
 
 Check out the [demo project](http://35.222.211.178:8080/#/notebook/2FQSWVBQ8) for a quick example of how NextiaJD works. Bear in mind that, in order to access them you must first login with the following credentials (user: user1, password: nextiajd).
 
+Note that we also have a step by step notebook which can also be found [here](http://35.222.211.178:8080/#/notebook/2FQSWVBQ8)
+
 More information and a video can be found [here](https://www.essi.upc.edu/~snadal/nextiajd.html#demonstration)
  
 ## Reproducibility of Experiments

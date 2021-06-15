@@ -23,22 +23,22 @@ Each testbed zip file contains the below files:
 
 The goal of the first experiment is to evaluate the prediction quality on generating a ranking of candidate equi join predicates. 
 
-The code and instructions for this experiment can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments).
+The code and instructions for this experiment can be found [here](https://github.com/dtim-upc/NextiaJD2/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments).
 
 ## Experiment 2: Comparison with the state-of-the-art
 
 We compare our approach with the following state-of-the-art data discovery solutions, whose source code is openly available: [LSH Ensemble](https://github.com/ekzhu/datasketch) and [FlexMatcher](https://github.com/biggorilla-gh/flexmatcher). 
 The code and instruction for each solution can be found in the following links:
 
-* [NextiaJD](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments) -- Note that it is not necessary to run again this step if you previously executed Experiment 1.
-* [FlexMatcher](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher#flexmatcher-discovery)
-* [LSH Ensemble](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble#lsh-ensemble-discovery)
+* [NextiaJD](https://github.com/dtim-upc/NextiaJD2/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/NextiaJD#nextiajd-experiments) -- Note that it is not necessary to run again this step if you previously executed Experiment 1.
+* [FlexMatcher](https://github.com/dtim-upc/NextiaJD2/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/FlexMatcher#flexmatcher-discovery)
+* [LSH Ensemble](https://github.com/dtim-upc/NextiaJD2/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/LSH%20Ensemble#lsh-ensemble-discovery)
 
-Each solution will generate a discovery file with the results proposed. Afterwards, in order to combine the results, we provide you with class `EvaluateDiscovery`. The instructions on how to use it are described in the following [website](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/DiscoveryMetrics).
+Each solution will generate a discovery file with the results proposed. Afterwards, in order to combine the results, we provide you with class `EvaluateDiscovery`. The instructions on how to use it are described in the following [website](https://github.com/dtim-upc/NextiaJD2/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/DiscoveryMetrics).
 
 ## Experiment 3: Scalability
 
-The most intensive task for our approach in terms of computational resources is the generation of attribute profiles from datasets. Hence, we performed a stress test of this component. We created a jar to prepare the files for this experiment. The code and more information can be found [here](https://github.com/dtim-upc/NextiaJD/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/Scalability).
+The most intensive task for our approach in terms of computational resources is the generation of attribute profiles from datasets. Hence, we performed a stress test of this component. We created a jar to prepare the files for this experiment. The code and more information can be found [here](https://github.com/dtim-upc/NextiaJD2/tree/nextiajd_v3.0.1/sql/nextiajd/experiments/Scalability).
 
 ## Experiment 4: Discovery of semantic non-syntactic relationships
 

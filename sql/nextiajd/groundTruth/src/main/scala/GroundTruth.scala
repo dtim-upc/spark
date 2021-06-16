@@ -22,19 +22,29 @@ object GroundTruth {
 
   import spark.implicits._
 
-  def readDataset(pathDatasets: String, filename: String, delim: String, multiline: Boolean, ignoreTrailing: Boolean): DataFrame = {
+  def readDataset(pathDatasets: String, filename: String, delim: String, multiline: Boolean, ignoreTrailing: Boolean, fileType: String): DataFrame = {
 
-    println(s"Reading filename ${filename} with parameters delim ${delim.trim}, multiline ${multiline},  trailing ${ignoreTrailing}")
+    if ( fileType.toLowerCase() == "csv") {
 
-    val dataset = spark.read
-      .option("header", "true").option("inferSchema", "true")
-      .option("delimiter", delim.trim).option("quote", "\"")
-      .option("escape", "\"").option("multiline",multiline)
-//      .option("nullValue", nullVal)
-      .option("ignoreTrailingWhiteSpace", ignoreTrailing)
-      .csv(s"$pathDatasets/$filename")
+      println(s"Reading filename ${filename} with parameters delim ${delim.trim}, multiline ${multiline},  trailing ${ignoreTrailing}")
 
-    dataset
+      val dataset = spark.read
+        .option("header", "true").option("inferSchema", "true")
+        .option("delimiter", delim.trim).option("quote", "\"")
+        .option("escape", "\"").option("multiline",multiline)
+        //      .option("nullValue", nullVal)
+        .option("ignoreTrailingWhiteSpace", ignoreTrailing)
+        .csv(s"$pathDatasets/$filename")
+
+      dataset
+    } else {
+      println(s"Reading parquet ${filename}")
+
+      val dataset = spark.read.parquet(s"$pathDatasets/$filename")
+//      dataset.show()
+      dataset
+    }
+
   }
 
 
@@ -47,7 +57,7 @@ object GroundTruth {
     } catch {
       case e:
         AnalysisException =>
-        println(s"Couldn't read the set of distinct values for file $fileName and attribute $attName")
+//        println(s"Couldn't read the set of distinct values for file $fileName and attribute $attName")
 
         // convert all values to lowecase and trim values
         val distinctDF = df.select(lower(trim(col(attName))).as(cleanAttName)).na.drop.distinct()
@@ -120,10 +130,12 @@ object GroundTruth {
 
     // mapDS contains as key the filename and as value the respective dataframe
     var mapDS = Map[String, DataFrame]()
-    dsInfo.select("filename","delimiter", "multiline","ignoreTrailing").collect()
+    dsInfo.select("filename","delimiter", "multiline","ignoreTrailing", "fileType").collect()
       .foreach{
-        case Row( filename: String, delimiter: String, multiline:Boolean,  ignoreTrailing: Boolean) =>
-            mapDS = mapDS + (filename -> readDataset(pathDatasets, filename,delimiter,multiline,ignoreTrailing))
+          case Row( filename: String, delimiter: String, multiline:Boolean,  ignoreTrailing: Boolean, fileType:String) =>
+            mapDS = mapDS + (filename -> readDataset(pathDatasets, filename,delimiter,multiline,ignoreTrailing, fileType))
+        case Row(filename:String,  null, null,  null, fileType:String) =>
+          mapDS = mapDS + (filename -> readDataset(pathDatasets, filename,",",false,false, fileType))
       }
 
     val listFiles = mapDS.keySet.toSeq
@@ -161,6 +173,14 @@ object GroundTruth {
     spark.stop()
   }
 
+  def test() = {
+    val ds = readDataset("/Users/javierflores/Documents/GroungTruthJoins/datasets/raw","a.csv",",",false,false,"csv")
+    ds.repartition(1).write.mode("overwrite").option("header","true")
+      .parquet(s"/Users/javierflores/Documents/GroungTruthJoins/datasets/output/parquet")
+
+
+  }
+
   def main(args: Array[String]): Unit = {
 
 
@@ -175,8 +195,9 @@ object GroundTruth {
 
     compute(conf.datasetsInfo().getAbsolutePath, conf.pathDatasets().getAbsolutePath,
       conf.sets().getAbsolutePath, conf.output().getAbsolutePath )
-//    pathDatasets, pathSets, pathOutput
+//
     stop()
+//    test()
 
   }
 }

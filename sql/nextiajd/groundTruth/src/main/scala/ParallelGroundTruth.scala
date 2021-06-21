@@ -19,7 +19,7 @@ object ParallelGroundTruth {
 
   def readDataset(path: String): Dataset[Row] = {
     val dataset = spark.read.parquet(path)
-    val datasetN = dataset.withColumn("tmp", explode(array(dataset.schema.filter(a => a.dataType.isInstanceOf[StringType]).map(a => a.name).tail.map(arrayItem): _*)))
+    val datasetN = dataset.withColumn("tmp", explode(array(dataset.schema.filter(a => a.dataType.isInstanceOf[StringType]).map(a => a.name).map(arrayItem): _*)))
       .withColumn("dataset", input_file_name())
       .select($"dataset", $"tmp.colName", $"tmp.colVal")
       .withColumn("colName", trim(lower($"colName")))

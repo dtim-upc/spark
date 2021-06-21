@@ -27,7 +27,7 @@ object ParallelGroundTruth {
       throw new Exception("Two arguments required (directory with parquet files, and output to write CSV)")
     }
 
-    val spark = SparkSession.builder.appName("ComputeGroundTruth").master("local[*]").getOrCreate()
+    val spark = SparkSession.builder.appName("ComputeGroundTruth")./*master("local[*]").*/getOrCreate()
 
     import spark.implicits._
 

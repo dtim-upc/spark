@@ -4,22 +4,13 @@ import org.apache.spark.sql.types._
 
 object ParallelGroundTruth {
 
-  val spark = SparkSession.builder.appName("SparkSQL")
-    .master("local[*]")
-    .config("spark.driver.memory", "5g")
-    .config("spark.driver.maxResultSize", "4g")
-    .getOrCreate()
+  def readDataset(spark: SparkSession, path: String): Dataset[Row] = {
+    import spark.implicits._
 
-  val sc = spark.sparkContext
-  sc.setLogLevel("ERROR")
-
-  import spark.implicits._
-
-  def arrayItem(name: String) = struct(lit(name) as "colName",$"$name" as "colVal")
-
-  def readDataset(path: String): Dataset[Row] = {
     val dataset = spark.read.parquet(path)
-    val datasetN = dataset.withColumn("tmp", explode(array(dataset.schema.filter(a => a.dataType.isInstanceOf[StringType]).map(a => a.name).map(arrayItem): _*)))
+    val datasetN = dataset.withColumn("tmp",
+      explode(array(dataset.schema.filter(a => a.dataType.isInstanceOf[StringType])
+        .map(a => a.name).map(name => struct(lit(name) as "colName",$"$name" as "colVal")): _*)))
       .withColumn("dataset", input_file_name())
       .select($"dataset", $"tmp.colName", $"tmp.colVal")
       .withColumn("colName", trim(lower($"colName")))
@@ -32,8 +23,19 @@ object ParallelGroundTruth {
   }
 
   def main(args: Array[String]): Unit = {
-    val all = os.list(os.Path("/home/snadal/UPC/Projects/NextiaJD/ParallelComputeGroundTruth/data/"))
-      .map(p => readDataset(p.toString()))
+    if (args.length != 2) {
+      throw new Exception("Two arguments required (directory with parquet files, and output to write CSV)")
+    }
+
+    val spark = SparkSession.builder.appName("ComputeGroundTruth").master("local[*]").getOrCreate()
+
+    import spark.implicits._
+
+    val sc = spark.sparkContext
+    sc.setLogLevel("ERROR")
+
+    val all = os.list(os.Path(args(0)))
+      .map(p => readDataset(spark,p.toString()))
       .reduce(_.unionAll(_))
 
     val A = all.withColumnRenamed("dataset","datasetA")
@@ -49,6 +51,7 @@ object ParallelGroundTruth {
     val cross = A.crossJoin(B)
       .filter($"datasetA" =!= $"datasetB") //avoid self-joins
       .withColumn("C", size(array_intersect($"valuesA",$"valuesB"))/$"cardinalityA")
+      .filter($"C" > 0)
       .withColumn("K", least($"cardinalityA",$"cardinalityB")/greatest($"cardinalityA",$"cardinalityB"))
       .select($"datasetA",$"attA",$"datasetB",$"attB",$"C",$"K")
 
@@ -57,6 +60,6 @@ object ParallelGroundTruth {
       .option("header","true")
       .option("sep",",")
       .mode("overwrite")
-      .csv("out.csv")
+      .csv(args(1))
   }
 }
